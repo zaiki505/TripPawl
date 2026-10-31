@@ -31,8 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
-import com.zaiki.trippawl.BuildConfig
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -757,99 +755,7 @@ fun SettingsScreen(
             }
         }
 
-        // 5. GitHub Updates & App Version
-        item {
-            ZaikiBentoCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "5. APP VERSION & UPDATES",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = colors.highlight
-                        )
-                        Text(
-                            text = "TripPawl v${BuildConfig.VERSION_NAME}",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = colors.textPrimary,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Check GitHub releases for the latest app build & APK installer.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textMuted
-                        )
-                    }
-                    Spacer(modifier = Modifier.padding(start = 8.dp))
-                    ZaikiSecondaryButton(
-                        text = if (uiState.isCheckingForUpdate) "Checking..." else "Check Updates",
-                        onClick = viewModel::checkForUpdates,
-                        isAccentTinted = true,
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                    )
-                }
-
-                if (uiState.updateCheckMessage != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    ZaikiFormStatusBanner(
-                        message = uiState.updateCheckMessage,
-                        isError = false
-                    )
-                }
-
-                val update = uiState.updateInfo
-                if (update != null && update.isUpdateAvailable) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(ZaikiRadii.InputField)
-                            .background(colors.available.copy(alpha = 0.12f))
-                            .border(BorderStroke(1.dp, colors.available.copy(alpha = 0.4f)), ZaikiRadii.InputField)
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            text = "🎉 New Release Available: ${update.releaseTitle}",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = colors.available,
-                            fontWeight = FontWeight.Bold
-                        )
-                        if (update.releaseNotes.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = update.releaseNotes.take(200) + if (update.releaseNotes.length > 200) "..." else "",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.textBody
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            ZaikiPrimaryButton(
-                                text = "⬇ Install APK",
-                                onClick = viewModel::downloadOrInstallUpdate,
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                            )
-                            ZaikiSecondaryButton(
-                                text = "View on GitHub",
-                                onClick = viewModel::openGitHubReleasesPage,
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // 6. Save & Reset Actions
+        // 5. Save & Reset Actions
         item {
             ZaikiBentoCard {
                 ZaikiFormStatusBanner(

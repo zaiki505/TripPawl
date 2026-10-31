@@ -152,30 +152,6 @@ class TripHistoryViewModel @Inject constructor(
         }
     }
 
-    fun toggleSinglePassengerWaived(share: Trip) {
-        viewModelScope.launch {
-            tripRepository.setTripWaived(
-                tripId = share.id,
-                isWaived = !share.isWaived
-            )
-        }
-    }
-
-    fun toggleGroupWaived(group: GroupedTrip) {
-        viewModelScope.launch {
-            val targetWaived = !group.isAllWaived
-            val groupId = group.passengerShares.firstOrNull()?.tripGroupId.orEmpty()
-            if (groupId.isNotBlank()) {
-                tripRepository.setGroupWaived(groupId, targetWaived)
-            } else {
-                group.passengerShares.forEach { share ->
-                    tripRepository.setTripWaived(share.id, targetWaived)
-                }
-            }
-            selectedGroupKeyFlow.value = null
-        }
-    }
-
     fun openGroupActionsDialog(group: GroupedTrip) {
         selectedGroupKeyFlow.value = group.groupKey
     }

@@ -211,8 +211,7 @@ enum class ZaikiTagCategory {
 fun ZaikiTagPill(
     text: String,
     category: ZaikiTagCategory = ZaikiTagCategory.SYSTEM,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null
+    modifier: Modifier = Modifier
 ) {
     val colors = ZaikiThemeTokens.colors
     val (bg, border, fg) = when (category) {
@@ -238,15 +237,8 @@ fun ZaikiTagPill(
         )
     }
 
-    val clickMod = if (onClick != null) {
-        Modifier.zaikiSquishClickable(onClick = onClick)
-    } else {
-        Modifier
-    }
-
     Box(
         modifier = modifier
-            .then(clickMod)
             .clip(ZaikiRadii.Pill)
             .background(bg)
             .border(BorderStroke(1.dp, border), ZaikiRadii.Pill)
@@ -270,17 +262,12 @@ fun ZaikiTagPill(
 @Composable
 fun ZaikiPaymentStatusChip(
     isPaid: Boolean,
-    isWaived: Boolean = false,
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     showQuickActionHint: Boolean = false
 ) {
     val colors = ZaikiThemeTokens.colors
-    val statusColor = when {
-        isWaived -> colors.highlight
-        isPaid -> colors.available
-        else -> colors.unavailable
-    }
+    val statusColor = if (isPaid) colors.available else colors.unavailable
     val bgColor = statusColor.copy(alpha = 0.14f)
     val borderColor = statusColor.copy(alpha = 0.42f)
 
@@ -308,7 +295,6 @@ fun ZaikiPaymentStatusChip(
         )
         Text(
             text = when {
-                isWaived -> "WAIVED 🎁"
                 isPaid -> "PAID ✓"
                 showQuickActionHint -> "PAY NOW"
                 else -> "UNPAID"

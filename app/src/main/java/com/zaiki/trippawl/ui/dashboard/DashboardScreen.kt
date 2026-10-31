@@ -33,18 +33,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
-import com.zaiki.trippawl.data.local.entity.DriveLogEntity
-import com.zaiki.trippawl.data.local.entity.DriveLogStatus
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
@@ -433,8 +427,14 @@ fun DashboardScreen(
                 }
             }
 
-            // 5. Waived Carpool Fares Summary Panel (Replaces Vehicle & Fuel Telemetry)
+            // 5. Vehicle & Fuel Telemetry Snapshot Panel
             item {
+                val efficiencyBadge = if (uiState.settings.fuelEfficiencyUnit == FuelEfficiencyUnit.LITERS_PER_100KM) {
+                    "${formatDecimal(uiState.settings.litersPer100Km)} L/100km"
+                } else {
+                    "${formatDecimal(uiState.settings.vehicleMileageKmPerL)} km/L"
+                }
+
                 ZaikiDetailPanel(
                     contentPadding = PaddingValues(horizontal = 15.dp, vertical = 12.dp)
                 ) {
@@ -445,75 +445,28 @@ fun DashboardScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "WAIVED CARPOOL FARES",
+                                text = "VEHICLE & FUEL TELEMETRY",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = colors.highlight
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Total Waived: ${formatMoney(currency, uiState.metrics.totalWaivedAmount)}",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = colors.textPrimary,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Carpool shares forgiven for friends & colleagues (${uiState.metrics.waivedTripCount} waived)",
+                                text = "${uiState.settings.vehicleName} (${uiState.settings.preferredFuelType}) · " +
+                                    "Cost/KM: ${formatMoney(currency, uiState.settings.ratePerKm)}/km",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = colors.textMuted
+                                color = colors.textBody
                             )
                         }
                         Spacer(modifier = Modifier.padding(start = 8.dp))
                         ZaikiTagPill(
-                            text = "${uiState.metrics.waivedTripCount} Waived",
-                            category = ZaikiTagCategory.PERSONAL
+                            text = efficiencyBadge,
+                            category = ZaikiTagCategory.SYSTEM
                         )
                     }
                 }
             }
 
-            // 6. GPS Drive Logs (Section Header & List)
-            item {
-                ZaikiSectionHeader(
-                    kicker = "GPS DRIVE SENSORS",
-                    title = "GPS Drive Logs",
-                    trailingContent = {
-                        if (uiState.recentDriveLogs.isNotEmpty()) {
-                            ZaikiTagPill(
-                                text = "${uiState.recentDriveLogs.size} logs",
-                                category = ZaikiTagCategory.SYSTEM
-                            )
-                        }
-                    }
-                )
-            }
-
-            if (uiState.recentDriveLogs.isEmpty()) {
-                item {
-                    ZaikiBentoCard(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-                    ) {
-                        Text(
-                            text = "No GPS-recorded drives logged yet",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colors.textMuted
-                        )
-                    }
-                }
-            } else {
-                items(
-                    items = uiState.recentDriveLogs,
-                    key = { "drivelog_${it.id}" }
-                ) { log ->
-                    DriveLogDashboardCard(
-                        log = log,
-                        onReopen = { viewModel.reopenDriveLog(log) },
-                        onDelete = { viewModel.deleteDriveLog(log.id) }
-                    )
-                }
-            }
-
-            // 7. Recent Trips Section Header
+            // 6. Recent Trips Section Header
             item {
                 ZaikiSectionHeader(
                     kicker = "RECENT ACTIVITY",
@@ -1480,86 +1433,9 @@ private fun RecentGroupedTripDashboardCard(
                 Spacer(modifier = Modifier.height(5.dp))
                 ZaikiPaymentStatusChip(
                     isPaid = group.isAllPaid,
-                    isWaived = group.isAllWaived,
                     onClick = onTogglePaid,
-                    showQuickActionHint = !group.isAllPaid && !group.isAllWaived
+                    showQuickActionHint = !group.isAllPaid
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DriveLogDashboardCard(
-    log: DriveLogEntity,
-    onReopen: () -> Unit,
-    onDelete: () -> Unit
-) {
-    val colors = ZaikiThemeTokens.colors
-    val dateFormat = remember { SimpleDateFormat("dd MMM · HH:mm", Locale.US) }
-    val durationMins = (log.durationMillis / 60_000).coerceAtLeast(1)
-
-    ZaikiBentoCard(
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "GPS Drive · ${formatDecimal(log.distanceKm)} km",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    ZaikiTagPill(
-                        text = log.logStatus.label,
-                        category = when (log.logStatus) {
-                            DriveLogStatus.SAVED -> ZaikiTagCategory.WEB
-                            DriveLogStatus.PENDING -> ZaikiTagCategory.PERSONAL
-                            DriveLogStatus.DISCARDED -> ZaikiTagCategory.SYSTEM
-                        }
-                    )
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "${dateFormat.format(Date(log.startTimeMillis))} · ${durationMins}m · " +
-                        "${formatDecimal(log.averageSpeedKmh)} km/h avg · ${log.gpsPointsCount} pts",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textMuted
-                )
-            }
-
-            Spacer(modifier = Modifier.padding(start = 8.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                if (log.logStatus != DriveLogStatus.SAVED) {
-                    ZaikiTagPill(
-                        text = "Review",
-                        category = ZaikiTagCategory.PERSONAL,
-                        onClick = onReopen
-                    )
-                }
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete Log",
-                        tint = colors.textMuted,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
             }
         }
     }
