@@ -1,0 +1,105 @@
+/* Zaiki Design System — motion
+   The brand's signature: bouncy, squishy, blur-in. Verbatim curves + keyframes
+   from source. Apply .ui-clicked to any element on pointerdown (remove on
+   animationend) for the global squish. */
+
+:root {
+  /* Easing vocabulary */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1); /* @kind other */
+  --ease-squish: cubic-bezier(0.175, 0.885, 0.32, 1.275); /* @kind other */
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0); /* @kind other */
+  --ease-smooth: ease-in-out; /* @kind other */
+
+  /* Durations */
+  --dur-hover: 0.3s; /* @kind other */
+  --dur-squish: 0.4s; /* @kind other */
+  --dur-glide: 0.55s; /* @kind other */
+  --dur-entrance: 0.7s; /* @kind other */
+  --dur-theme: 0.45s; /* @kind other */
+}
+
+/* Global squish click interaction */
+@keyframes uiPop {
+  0%   { scale: 1 1; }
+  30%  { scale: 0.9 1.1; }
+  50%  { scale: 1.1 0.9; }
+  70%  { scale: 0.97 1.03; }
+  100% { scale: 1 1; }
+}
+
+.ui-clicked {
+  animation: uiPop 0.4s var(--ease-squish) !important;
+}
+
+a.ui-clicked:not([style*="display"]),
+span.ui-clicked:not([style*="display"]) {
+  display: inline-block;
+}
+
+/* Pill squish-stretch while travelling (nav indicator) */
+@keyframes navPillSquish {
+  0%   { transform: scaleX(1) scaleY(1); }
+  35%  { transform: scaleX(1.14) scaleY(0.82); }
+  70%  { transform: scaleX(0.95) scaleY(1.07); }
+  100% { transform: scaleX(1) scaleY(1); }
+}
+
+@keyframes navPillClick {
+  0%   { transform: scaleX(1) scaleY(1); }
+  30%  { transform: scaleX(1.12) scaleY(0.78); }
+  60%  { transform: scaleX(0.95) scaleY(1.1); }
+  100% { transform: scaleX(1) scaleY(1); }
+}
+
+/* Blur + slide entrance (page sections, staggered) */
+@keyframes stackSlideIn {
+  from { opacity: 0; filter: blur(16px); transform: translateY(-44px) scale(0.985); }
+  to   { opacity: 1; filter: blur(0);    transform: translateY(0) scale(1); }
+}
+
+@keyframes scaleInFade {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Idle bob (peek cards, decorations) */
+@keyframes peekCardBob {
+  0%, 100% { margin-top: 0; }
+  50%      { margin-top: -9px; }
+}
+
+/* Hero title blur wave — short burst, long rest */
+@keyframes heroBlurWave {
+  0%        { filter: blur(0);   transform: scaleX(1); }
+  9%        { filter: blur(5px); transform: scaleX(1.67); }
+  18%, 100% { filter: blur(0);   transform: scaleX(1); }
+}
+
+/* Accent gradient shimmer (hero highlight word, active logo) */
+@keyframes heroGradientShimmer {
+  from { background-position: 0% 50%; }
+  to   { background-position: 100% 50%; }
+}
+
+/* Drifting aurora backdrop */
+@keyframes heroAurora {
+  0%   { translate: -3% -2%; scale: 1; }
+  50%  { translate: 3% 2%;   scale: 1.12; }
+  100% { translate: -1% 3%;  scale: 1.5; }
+}
+
+/* Scroll-hint arrow bounce */
+@keyframes scrollHintBounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-clicked { animation: none !important; }
+}

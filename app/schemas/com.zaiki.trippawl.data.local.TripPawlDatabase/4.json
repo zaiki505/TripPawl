@@ -1,0 +1,294 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "6693cbe6d52e347935e308b2fa071e7f",
+    "entities": [
+      {
+        "tableName": "riders",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `phone` TEXT, `createdAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_riders_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_riders_name` ON `${TABLE_NAME}` (`name`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "trips",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `tripGroupId` TEXT NOT NULL, `tripName` TEXT NOT NULL, `riderId` INTEGER NOT NULL, `distanceKm` REAL NOT NULL, `isShortTrip` INTEGER NOT NULL, `tollAmount` REAL NOT NULL, `parkingAmount` REAL NOT NULL, `calculatedFare` REAL NOT NULL, `isPaid` INTEGER NOT NULL, `isWaived` INTEGER NOT NULL DEFAULT 0, `tripDate` INTEGER NOT NULL, `arrivalDate` INTEGER, `settledDate` INTEGER, `passengerCount` INTEGER NOT NULL, `fuelCost` REAL NOT NULL, `maintenanceAmount` REAL NOT NULL, `totalTripCost` REAL NOT NULL, `gpsPointsCount` INTEGER NOT NULL, `isAutoTracked` INTEGER NOT NULL, `customFuelMileageKmPerL` REAL, `customFuelPricePerLiter` REAL, `customMaintenanceMarkup` REAL, `tripNotes` TEXT NOT NULL, `isRecurring` INTEGER NOT NULL, `recurrenceInterval` INTEGER NOT NULL, `recurrenceUnit` TEXT NOT NULL, `nextOccurrenceDate` INTEGER, FOREIGN KEY(`riderId`) REFERENCES `riders`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tripGroupId",
+            "columnName": "tripGroupId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tripName",
+            "columnName": "tripName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "riderId",
+            "columnName": "riderId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "distanceKm",
+            "columnName": "distanceKm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isShortTrip",
+            "columnName": "isShortTrip",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tollAmount",
+            "columnName": "tollAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parkingAmount",
+            "columnName": "parkingAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calculatedFare",
+            "columnName": "calculatedFare",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPaid",
+            "columnName": "isPaid",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isWaived",
+            "columnName": "isWaived",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "tripDate",
+            "columnName": "tripDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "arrivalDate",
+            "columnName": "arrivalDate",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "settledDate",
+            "columnName": "settledDate",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "passengerCount",
+            "columnName": "passengerCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fuelCost",
+            "columnName": "fuelCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maintenanceAmount",
+            "columnName": "maintenanceAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalTripCost",
+            "columnName": "totalTripCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gpsPointsCount",
+            "columnName": "gpsPointsCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isAutoTracked",
+            "columnName": "isAutoTracked",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customFuelMileageKmPerL",
+            "columnName": "customFuelMileageKmPerL",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "customFuelPricePerLiter",
+            "columnName": "customFuelPricePerLiter",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "customMaintenanceMarkup",
+            "columnName": "customMaintenanceMarkup",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "tripNotes",
+            "columnName": "tripNotes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isRecurring",
+            "columnName": "isRecurring",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recurrenceInterval",
+            "columnName": "recurrenceInterval",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recurrenceUnit",
+            "columnName": "recurrenceUnit",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nextOccurrenceDate",
+            "columnName": "nextOccurrenceDate",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_trips_riderId",
+            "unique": false,
+            "columnNames": [
+              "riderId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_trips_riderId` ON `${TABLE_NAME}` (`riderId`)"
+          },
+          {
+            "name": "index_trips_tripDate",
+            "unique": false,
+            "columnNames": [
+              "tripDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_trips_tripDate` ON `${TABLE_NAME}` (`tripDate`)"
+          },
+          {
+            "name": "index_trips_isPaid",
+            "unique": false,
+            "columnNames": [
+              "isPaid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_trips_isPaid` ON `${TABLE_NAME}` (`isPaid`)"
+          },
+          {
+            "name": "index_trips_tripGroupId",
+            "unique": false,
+            "columnNames": [
+              "tripGroupId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_trips_tripGroupId` ON `${TABLE_NAME}` (`tripGroupId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "riders",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "riderId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6693cbe6d52e347935e308b2fa071e7f')"
+    ]
+  }
+}

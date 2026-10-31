@@ -1,0 +1,928 @@
+/* ==================== RECAPTCHA ==================== */
+.grecaptcha-badge {
+  visibility: hidden !important;
+}
+
+.recaptcha-notice {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.5rem;
+}
+
+.recaptcha-notice a {
+  color: #aa80e4;
+  text-decoration: none;
+}
+
+.recaptcha-notice a:hover {
+  color: #b89fd4;
+}
+
+/* ==================== LOGO + HOME AFFORDANCE ==================== */
+.logo a {
+  position: relative;
+}
+
+.logo a::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  left: 45px;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  font-weight: bold;
+  letter-spacing: 0.02em;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+
+  background: rgba(167, 84, 255, 0.16);
+  border: 1px solid rgba(167, 84, 255, 0.3);
+  color: var(--highlight);
+  opacity: 0;
+  transform: translateY(-4px) scale(0.96);
+  filter: blur(4px);
+  pointer-events: none;
+  transition:
+    opacity 0.3s ease,
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 0.3s ease;
+}
+
+.logo a[data-tooltip]:hover::after,
+.logo a[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+.logo a[aria-current="page"] {
+  cursor: default;
+}
+
+.logo a[aria-current="page"] .logo-text {
+  background: linear-gradient(
+    90deg,
+    var(--highlight),
+    #d48cff,
+    #7b5bff,
+    #d48cff,
+    var(--highlight)
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 0 8px rgba(167, 84, 255, 0.4));
+  animation: logoGradientShift 10s linear infinite;
+}
+
+.logo a[aria-current="page"]:hover .logo-text,
+.logo a[aria-current="page"] .logo-text:hover {
+  color: transparent;
+}
+
+@keyframes logoGradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 250% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo a[aria-current="page"] .logo-text {
+    animation: none;
+  }
+}
+
+/* ==================== SCROLL-TO-TOP BUTTON (mobile) ==================== */
+
+.scroll-top-btn {
+  position: fixed;
+  right: clamp(1rem, 4vw, 1.5rem);
+  bottom: clamp(1rem, 4vw, 1.5rem);
+  width: 46px;
+  height: 46px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(167, 84, 255, 0.4);
+  border-radius: 50%;
+  background: var(--highlight);
+  color: var(--lightFont);
+  cursor: pointer;
+  z-index: 120;
+  box-shadow: 0 8px 22px rgba(167, 84, 255, 0.4);
+  opacity: 0;
+  transform: translateY(16px) scale(0.8);
+  pointer-events: none;
+  transition:
+    opacity 0.35s ease,
+    transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease;
+}
+
+.scroll-top-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.scroll-top-btn.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.scroll-top-btn:active {
+  transform: translateY(2px) scale(0.9);
+  box-shadow: 0 4px 12px rgba(167, 84, 255, 0.35);
+}
+
+@media (max-width: 780px) {
+  .scroll-top-btn {
+    display: inline-flex;
+  }
+}
+
+/* ==================== CONTACT FORM STATUS ==================== */
+
+.form-status {
+  margin-top: 0.85rem;
+  padding: 0.7rem 0.95rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateY(-6px);
+  max-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    max-height 0.35s ease;
+}
+
+.form-status.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  max-height: 200px;
+  pointer-events: auto;
+}
+
+.form-status[data-state="success"] {
+  background: rgba(0, 230, 118, 0.1);
+  border: 1px solid rgba(0, 230, 118, 0.35);
+  color: #34d399;
+}
+
+.form-status[data-state="error"] {
+  background: rgba(255, 23, 68, 0.1);
+  border: 1px solid rgba(255, 23, 68, 0.35);
+  color: #ff6b81;
+}
+
+/* ==================== HERO PEEK + ABOUT SEAMLESS MORPH ==================== */
+/* Three mini cards, styled identically to the About bento cards, sit fanned at
+   the bottom of the hero (only their tops peek). When the About section is about
+   to be seen, JS animates each peek card's EXACT box - left/top/width/height (no
+   scale, so radius & shape never distort) - until it lands precisely on its
+   matching About card, then crossfades to the real card. Everything is in
+   document space, so the morph stays locked to the cards even while scrolling. 
+   Resets when the user returns to the very top. */
+.scroll-peek {
+  position: static;
+  display: block;
+}
+
+body:not(.exit) main > .scroll-peek {
+  animation: none;
+}
+
+.scroll-peek-deck {
+  position: static;
+}
+
+.peek-card {
+  position: absolute; /* anchored to <main> (.home-page); geometry set in JS, matched to the About bento cards */
+  background:
+    radial-gradient(
+      circle at 80% 20%,
+      rgba(167, 84, 255, 0.1),
+      transparent 55%
+    ),
+    rgba(0, 0, 0, 0.38);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.28),
+    0 0 22px rgba(167, 84, 255, 0.1);
+  transform-origin: center;
+  z-index: 4;
+  filter: blur(0);
+  will-change: left, top, width, height, transform, opacity, filter;
+  transition:
+    left 0.7s cubic-bezier(0.5, 0, 0.2, 1),
+    top 0.7s cubic-bezier(0.5, 0, 0.2, 1),
+    width 0.7s cubic-bezier(0.5, 0, 0.2, 1),
+    height 0.7s cubic-bezier(0.5, 0, 0.2, 1),
+    transform 0.7s cubic-bezier(0.5, 0, 0.2, 1),
+    translate 0.7s cubic-bezier(0.5, 0, 0.2, 1),
+    opacity 0.4s ease,
+    filter 0.55s ease,
+    border-color 0.3s ease;
+}
+
+/* Entrance: the deck fades / rises / unblurs in on every page load, in step
+   with the rest of the stack-slide intro. Uses the `translate` longhand + `backwards` 
+   fill so it composes with the JS-set `transform: rotate()` and reverts cleanly afterwards (leaving `filter` free
+   for the morph blur below). */
+@keyframes peekIntro {
+  from {
+    opacity: 0;
+    translate: 0 40px;
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    filter: blur(0);
+  }
+}
+
+/* Runs on `margin-top` (NOT translate/transform) so it stacks cleanly with peekIntro's
+   `translate` rise and the JS-set `transform: rotate()` */
+@keyframes peekCardBob {
+  0%,
+  100% {
+    margin-top: 0;
+  }
+  50% {
+    margin-top: -9px;
+  }
+}
+
+/* Load entrance + idle bob declared TOGETHER in a single rule that is never
+   toggled or swapped. peekIntro plays once on load, peekCardBob loops forever.*/
+body:not(.exit) .scroll-peek .peek-card {
+  animation:
+    peekIntro 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) backwards,
+    peekCardBob 3.4s ease-in-out infinite;
+}
+
+/* Per-card delays are [peekIntro, peekCardBob].The negative bob delays
+   give each card a different float phase so they don't bob in lockstep. */
+body:not(.exit) .scroll-peek .peek-card:nth-child(2) {
+  animation-delay:
+    0.3s,
+    -1.7s;
+}
+body:not(.exit) .scroll-peek .peek-card:nth-child(1) {
+  animation-delay:
+    0.75s,
+    -0.6s;
+}
+body:not(.exit) .scroll-peek .peek-card:nth-child(3) {
+  animation-delay:
+    0.65s,
+    -2.5s;
+}
+
+/* During the morph, drop ONLY the bob and clear the bob's margin so each card lands exactly on its About card. */
+body:not(.exit) .scroll-peek.peek-morphing .peek-card {
+  animation-name: peekIntro, none;
+  margin-top: 0;
+}
+
+.scroll-peek.peek-morphing .peek-card {
+  filter: blur(6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.exit) .scroll-peek .peek-card {
+    animation: none;
+  }
+  .scroll-peek.peek-morphing .peek-card {
+    filter: blur(0);
+  }
+}
+
+.peek-card::before {
+  content: "";
+  position: absolute;
+  left: 14%;
+  top: 22%;
+  width: 52%;
+  height: 7%;
+  border-radius: 999px;
+  background: rgba(167, 84, 255, 0.4);
+}
+.peek-card::after {
+  content: "";
+  position: absolute;
+  left: 14%;
+  top: 40%;
+  width: 72%;
+  height: 5%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.scroll-peek.peek-morphing .peek-card::before,
+.scroll-peek.peek-morphing .peek-card::after {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.scroll-peek:hover .peek-card {
+  border-color: rgba(167, 84, 255, 0.4);
+}
+
+body.light .peek-card {
+  background: lab(from var(--light) l a b);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+body.light .peek-card::after {
+  background: lab(from var(--light) 90 a b);
+}
+
+/* Crossfade: once a peek card has landed on its About card, it fades out as the
+   real card fades in over the same box. */
+.scroll-peek.peek-gone .peek-card {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#about .bento-card {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+#about.about-revealed .bento-card {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-peek {
+    display: none;
+  }
+  #about .bento-card {
+    opacity: 1;
+  }
+}
+
+/* ==================== SCROLL REVEAL (card lists) ==================== */
+/* Cards fade + slide + zoom + unblur as they enter view, and reverse as they
+   leave - driven by an IntersectionObserver toggling `.in-view`. Uses the
+   translate/scale so it composes with each card's hover transform. */
+/* Not-yet-revealed cards stay visible as dim, blurred placeholders */
+.reveal-item {
+  opacity: 0.4;
+  translate: 0 16px;
+  scale: 0.94;
+  filter: blur(7px);
+  transition:
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--reveal-i, 0) * 0.06s),
+    translate 0.6s cubic-bezier(0.16, 1, 0.3, 1)
+      calc(var(--reveal-i, 0) * 0.06s),
+    scale 0.6s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--reveal-i, 0) * 0.06s),
+    filter 0.6s ease calc(var(--reveal-i, 0) * 0.06s),
+    transform 0.35s ease,
+    box-shadow 0.35s ease,
+    border-color 0.35s ease;
+}
+
+.reveal-item.in-view {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-item {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+    filter: none;
+    transition: none;
+  }
+}
+
+/* ==================== EXPANDED FOOTER ==================== */
+footer.site-footer {
+  text-align: left;
+  padding: clamp(2rem, 5vw, 3.5rem) clamp(1.25rem, 5vw, 3rem) 1.25rem;
+}
+
+.footer-inner {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.7fr 1fr auto;
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: start;
+}
+
+.footer-col h4 {
+  font-size: 1rem;
+  color: var(--highlight);
+  margin-bottom: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+.footer-about p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.88rem;
+  line-height: 1.7;
+  max-width: 46ch;
+  margin: 0 0 0.6rem;
+}
+
+.footer-about .footer-credit {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+}
+
+.footer-links {
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-links a {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 0.88rem;
+  transition:
+    color 0.25s ease,
+    padding-left 0.25s ease;
+}
+
+.footer-links a:hover {
+  color: var(--highlight);
+  padding-left: 5px;
+}
+
+.footer-cat-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.footer-cat {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  width: clamp(92px, 22vw, 122px);
+  line-height: 0;
+}
+
+.footer-cat-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.footer-cat-hint {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.05em;
+}
+
+.footer-bottom {
+  width: min(1120px, 100%);
+  margin: clamp(1.5rem, 4vw, 2.5rem) auto 0;
+  padding-top: 1.1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.footer-bottom small {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* --- Interactive cat face --- */
+.cat-fur {
+  fill: #423b4f;
+}
+.cat-ear-in {
+  fill: var(--highlight);
+}
+.cat-eye-white {
+  fill: #ffffff;
+}
+.cat-pupil {
+  fill: #1c1c1c;
+}
+.cat-nose {
+  fill: #db68d7;
+}
+.cat-mouth {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cat-brow {
+  stroke: #fff;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+.cat-eye-happy {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.cat-blush {
+  fill: rgba(255, 130, 180, 0.65);
+}
+.cat-whisker {
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+}
+.cat-sweat {
+  fill: #7fd4ff;
+}
+
+/* element visibility per face state */
+.cat-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.cat-eye-happy,
+.cat-brow,
+.cat-blush,
+.cat-sweat,
+.mouth-happy,
+.mouth-angry,
+.mouth-annoyed {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.mouth-neutral {
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+/* Happy (hover) */
+.footer-cat.cat--happy .cat-eye {
+  opacity: 0;
+}
+.footer-cat.cat--happy .cat-eye-happy,
+.footer-cat.cat--happy .cat-blush {
+  opacity: 1;
+}
+.footer-cat.cat--happy .mouth-neutral {
+  opacity: 0;
+}
+.footer-cat.cat--happy .mouth-happy {
+  opacity: 1;
+}
+
+/* Angry (click) */
+.footer-cat.cat--angry .cat-brow {
+  opacity: 1;
+}
+.footer-cat.cat--angry .cat-eye {
+  transform: scaleY(0.68);
+}
+.footer-cat.cat--angry .mouth-neutral {
+  opacity: 0;
+}
+.footer-cat.cat--angry .mouth-angry {
+  opacity: 1;
+}
+
+/* Annoyed (click) */
+.footer-cat.cat--annoyed .cat-eye {
+  transform: scaleY(0.5);
+}
+.footer-cat.cat--annoyed .cat-pupil-wrap {
+  transform: scaleX(0.35) scaleY(1.1) !important; /* Sharp judgmental slit */
+}
+.footer-cat.cat--annoyed .mouth-neutral {
+  opacity: 0;
+}
+.footer-cat.cat--annoyed .mouth-annoyed {
+  opacity: 1;
+}
+
+/* Blink */
+.footer-cat.cat--blink .cat-eye {
+  transform: scaleY(0.05) !important;
+}
+
+/* React - startled */
+.footer-cat.cat--react .cat-eye {
+  transform: scale(1.16);
+}
+.footer-cat.cat--react .mouth-neutral {
+  opacity: 0;
+}
+.footer-cat.cat--react .mouth-annoyed {
+  opacity: 1;
+}
+
+/* ==================== IMAGE LIGHTBOX ==================== */
+
+.media-platform img {
+  cursor: zoom-in;
+  transition: opacity 0.18s ease;
+}
+.media-platform img:hover {
+  opacity: 0.82;
+}
+
+.img-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+.img-lightbox.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.lightbox-nav-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 98vw;
+}
+
+.lightbox-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(0.9);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.img-lightbox.is-open .lightbox-content {
+  transform: scale(1);
+}
+
+.lightbox-img {
+  max-width: 100%;
+  max-height: 88vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.65);
+  display: block;
+}
+
+.lightbox-close,
+.lightbox-prev,
+.lightbox-next {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.3rem;
+  line-height: 1;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+.lightbox-close:hover,
+.lightbox-prev:hover,
+.lightbox-next:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.lightbox-close {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 2;
+}
+.lightbox-close:hover {
+  transform: scale(1.1);
+}
+
+.lightbox-prev {
+  font-size: 1.6rem;
+}
+.lightbox-prev:hover {
+  transform: scale(1.1);
+}
+
+.lightbox-next {
+  font-size: 1.6rem;
+}
+.lightbox-next:hover {
+  transform: scale(1.1);
+}
+
+.lightbox-prev[hidden],
+.lightbox-next[hidden] {
+  display: none;
+}
+
+.cat-pupil-wrap {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(1.2); /* dark theme: dilated & round (cute) */
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+body.light .cat-pupil-wrap {
+  transform: scaleX(0.32) scaleY(1.28); /* light theme: vertical slit */
+}
+
+/* Super-exaggerated rage face (shown while cat storms off). */
+.footer-cat.cat--rage .cat-brow {
+  opacity: 1;
+}
+.footer-cat.cat--rage .cat-eye {
+  transform: scaleY(0.4);
+}
+.footer-cat.cat--rage .mouth-neutral,
+.footer-cat.cat--rage .cat-eye-happy {
+  opacity: 0;
+}
+.footer-cat.cat--rage .mouth-angry {
+  opacity: 1;
+}
+.footer-cat.cat--rage .footer-cat-svg {
+  filter: saturate(1.6) brightness(1.08)
+    drop-shadow(0 0 6px rgba(255, 70, 70, 0.55));
+}
+
+/* Spam-click flee: cat bounds off the screen with squash &
+   stretch, hangs off-screen for a moment, then bounces back. */
+.footer-cat.cat--flee {
+  position: relative;
+  z-index: 200;
+  pointer-events: none;
+  transform-origin: bottom center;
+  animation: catFlee 6.4s cubic-bezier(0.45, 0, 0.55, 1) forwards !important;
+}
+
+/* Bounds off the side of the screen in arcs with squash & stretch, hangs off
+   to the right for a moment, then bounds back. */
+@keyframes catFlee {
+  0% {
+    transform: translate(0, 0) scale(1, 1);
+  }
+  6% {
+    transform: translate(-3%, 4%) scale(1.3, 0.7);
+  } /* anticipation crouch + lean back */
+  14% {
+    transform: translate(16vw, -12vh) scale(0.85, 1.15);
+  } /* hop 1 - airborne, stretched vertically */
+  20% {
+    transform: translate(22vw, 0) scale(1.32, 0.68);
+  } /* land 1 - squash */
+  29% {
+    transform: translate(48vw, -13vh) scale(0.85, 1.15);
+  } /* hop 2 - airborne, stretched vertically */
+  35% {
+    transform: translate(54vw, 0) scale(1.32, 0.7);
+  } /* land 2 - squash */
+  44% {
+    transform: translate(122vw, -9vh) scale(0.85, 1.15);
+  } /* leap off-screen to the right */
+  72% {
+    transform: translate(122vw, 0) scale(1, 1);
+  } /* hang off-screen ~1.8s */
+  82% {
+    transform: translate(46vw, 3%) scale(1.3, 0.72);
+  } /* bound back - land squash */
+  90% {
+    transform: translate(14vw, -8vh) scale(0.85, 1.15);
+  } /* hop - airborne, stretched vertically */
+  96% {
+    transform: translate(0, 4%) scale(1.3, 0.7);
+  } /* final landing squash */
+  100% {
+    transform: translate(0, 0) scale(1, 1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cat-pupil-wrap {
+    transition: none;
+  }
+  .footer-cat.cat--flee {
+    animation: none;
+  }
+}
+
+/* Footer light theme */
+body.light footer.site-footer .footer-about p {
+  color: rgba(28, 28, 28, 0.72);
+}
+body.light footer.site-footer .footer-about .footer-credit,
+body.light footer.site-footer .footer-cat-hint,
+body.light footer.site-footer .footer-bottom small {
+  color: rgba(28, 28, 28, 0.45);
+}
+body.light footer.site-footer .footer-links a {
+  color: rgba(28, 28, 28, 0.7);
+}
+body.light footer.site-footer .footer-links a:hover {
+  color: var(--highlight);
+}
+body.light footer.site-footer .footer-bottom {
+  border-top-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Footer responsive */
+@media (max-width: 760px) {
+  .footer-inner {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+    text-align: center;
+  }
+  .footer-about p {
+    max-width: none;
+  }
+  .footer-links {
+    justify-items: center;
+  }
+  .footer-cat-col {
+    order: -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cat-eye,
+  .cat-eye-happy,
+  .cat-brow,
+  .cat-blush,
+  .cat-sweat,
+  .mouth-neutral,
+  .mouth-happy,
+  .mouth-angry,
+  .mouth-scared {
+    transition: none;
+  }
+}
+
+@media print {
+  body {
+    background: white;
+    color: #1c1c1c;
+    padding-top: 0;
+  }
+
+  header,
+  footer,
+  .contact-submit {
+    display: none;
+  }
+
+  .resume-page {
+    width: 100%;
+    padding: 0;
+  }
+
+  .resume-sheet {
+    border: none;
+    box-shadow: none;
+    max-width: none;
+  }
+}

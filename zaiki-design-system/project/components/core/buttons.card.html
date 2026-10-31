@@ -1,0 +1,57 @@
+<!-- @dsCard group="Components" viewport="700x360" name="Core — Buttons, Tags, Chips, Breadcrumb" subtitle="Pills that squish on click, category tags, skill chips" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { margin: 0; background: var(--bg-page); padding: 24px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .row + .row { margin-top: 16px; }
+  .lbl { color: var(--text-faint); font: 700 0.62rem var(--font-mono); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+</style>
+</head>
+<body class="z-body">
+  <div id="root"></div>
+  <script src="../../_ds_bundle.js"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel">
+    const { Button, Tag, SkillChip, Breadcrumb } = window.ZaikiDesignSystem_9f1839;
+    ReactDOM.createRoot(document.getElementById("root")).render(
+      <React.Fragment>
+        <div className="row">
+          <Button variant="primary" href="#">View My Work</Button>
+          <Button variant="secondary" href="#">Get in Touch</Button>
+          <Button variant="pill" href="#">Email Me</Button>
+          <Button variant="action" href="#">Download</Button>
+          <Button variant="theme">Theme</Button>
+        </div>
+        <div style={{ marginTop: 18 }}>
+          <div className="lbl">Category tags</div>
+          <div className="row">
+            <Tag category="web">Web Development</Tag>
+            <Tag category="system">System Design</Tag>
+            <Tag category="creative">Creative</Tag>
+            <Tag category="personal">Personal Project</Tag>
+          </div>
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <div className="lbl">Skill chips (tiered)</div>
+          <div className="row">
+            <SkillChip tier="advanced">HTML</SkillChip>
+            <SkillChip tier="advanced">CSS</SkillChip>
+            <SkillChip tier="intermediate">Java</SkillChip>
+            <SkillChip tier="beginner">MySQL</SkillChip>
+            <SkillChip>Git</SkillChip>
+          </div>
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <Breadcrumb items={[{ label: "Home", href: "#" }]} current="Projects" />
+        </div>
+      </React.Fragment>
+    );
+  </script>
+</body>
+</html>

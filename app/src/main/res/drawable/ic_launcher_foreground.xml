@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- Zaiki CyberCat Launcher Foreground -->
+    <group
+        android:scaleX="0.6"
+        android:scaleY="0.6"
+        android:translateX="20"
+        android:translateY="20">
+        <!-- Ears -->
+        <path
+            android:fillColor="#423B4F"
+            android:pathData="M24,40 L17,15 L43,30 Z" />
+        <path
+            android:fillColor="#423B4F"
+            android:pathData="M76,40 L83,15 L57,30 Z" />
+        <path
+            android:fillColor="#A754FF"
+            android:pathData="M26,38 L21,21 L39,31 Z" />
+        <path
+            android:fillColor="#A754FF"
+            android:pathData="M74,38 L79,21 L61,31 Z" />
+        <!-- Head -->
+        <path
+            android:fillColor="#423B4F"
+            android:pathData="M15,58a35,31 0,1 0,70 0a35,31 0,1 0,-70 0" />
+        <!-- Eyes -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M29,54a8,10 0,1 0,16 0a8,10 0,1 0,-16 0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M55,54a8,10 0,1 0,16 0a8,10 0,1 0,-16 0" />
+        <path
+            android:fillColor="#1C1C1C"
+            android:pathData="M33,55a4,4 0,1 0,8 0a4,4 0,1 0,-8 0" />
+        <path
+            android:fillColor="#1C1C1C"
+            android:pathData="M59,55a4,4 0,1 0,8 0a4,4 0,1 0,-8 0" />
+        <!-- Nose -->
+        <path
+            android:fillColor="#DB68D7"
+            android:pathData="M46,62 H54 L50,67 Z" />
+    </group>
+</vector>

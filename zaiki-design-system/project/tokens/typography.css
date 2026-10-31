@@ -1,0 +1,27 @@
+/* Zaiki Design System — typography
+   ONE typeface everywhere: JetBrains Mono (variable 100–800, + italics).
+   Source loads it from Google Fonts; no local binaries exist in the repo. */
+
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap");
+
+:root {
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Fluid type scale (from source clamps) */
+  --text-hero: clamp(3rem, 7vw + 1.4vh, 7.8rem); /* @kind other */
+  --text-h1: clamp(2rem, 3vw, 4.5rem);                  /* page hero h1 */
+  --text-h2: clamp(1.6rem, 3.5vw, 2.8rem);              /* banner headings */
+  --text-h3: clamp(1.1rem, 2vw, 1.45rem);               /* card headings */
+  --text-section-title: clamp(1.25rem, 2.5vw, 1.75rem); /* section titles (accent color, centered) */
+  --text-body-size: clamp(0.88rem, 1.3vw, 0.98rem);
+  --text-small: clamp(0.84rem, 1.2vw, 0.92rem);
+  --text-kicker: clamp(0.78rem, 1.2vw, 0.9rem);         /* uppercase accent kicker */
+  --text-tag: 0.6rem;                                   /* uppercase tag pills */
+
+  --line-body: 1.6; /* @kind other */
+  --line-relaxed: 1.7; /* @kind other */
+  --line-tight: 1.05; /* @kind other */
+
+  --tracking-kicker: 0.1em; /* @kind other */
+  --tracking-tag: 0.05em; /* @kind other */
+}

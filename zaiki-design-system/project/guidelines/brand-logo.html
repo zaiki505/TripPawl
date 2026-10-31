@@ -1,0 +1,22 @@
+<!-- @dsCard group="Brand" viewport="700x170" name="Logo & Radii" subtitle="Circular avatar mark + the radius system" -->
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;background:var(--bg-page);padding:22px 26px;font-family:var(--font-mono);color:var(--text-primary);display:flex;gap:26px;align-items:center;flex-wrap:wrap;}
+  .logo{display:flex;align-items:center;gap:12px;}
+  .logo img{width:52px;height:52px;border-radius:50%;object-fit:cover;box-shadow:0 4px 20px rgba(167,84,255,.4);}
+  .logo b{font-size:1rem;}
+  .radii{display:flex;gap:10px;flex-wrap:wrap;}
+  .r{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:.58rem;color:var(--text-faint);}
+  .r i{display:block;width:56px;height:40px;background:var(--surface-glass);border:1px solid var(--border-card);}
+</style></head>
+<body class="z-body">
+  <div class="logo"><img src="../assets/logo.jpeg" alt="zaiki"><b>zaiki's Portfolio</b></div>
+  <div class="radii">
+    <div class="r"><i style="border-radius:8px"></i>btn 8</div>
+    <div class="r"><i style="border-radius:12px"></i>panel 12</div>
+    <div class="r"><i style="border-radius:18px"></i>card 18</div>
+    <div class="r"><i style="border-radius:24px"></i>banner 24</div>
+    <div class="r"><i style="border-radius:999px"></i>pill 999</div>
+  </div>
+</body></html>

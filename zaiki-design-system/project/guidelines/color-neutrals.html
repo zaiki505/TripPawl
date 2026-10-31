@@ -1,0 +1,16 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Neutrals — Dark-first" subtitle="Page, raised & hover surfaces (lab-derived from #333)" -->
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;background:var(--bg-page);padding:20px;font-family:var(--font-mono);}
+  .row{display:flex;gap:12px;flex-wrap:wrap;}
+  .sw{flex:1;min-width:100px;height:96px;border-radius:14px;display:flex;flex-direction:column;justify-content:flex-end;padding:10px;color:#fff;font-size:.68rem;font-weight:700;border:1px solid var(--border-hairline);}
+  .sw small{display:block;opacity:.7;font-weight:500;}
+</style></head>
+<body class="z-body"><div class="row">
+  <div class="sw" style="background:var(--bg-page)">bg-page<small>L12 · #141418</small></div>
+  <div class="sw" style="background:var(--bg-raised)">bg-raised<small>L20 · #20202a</small></div>
+  <div class="sw" style="background:var(--bg-hover)">bg-hover<small>L25</small></div>
+  <div class="sw" style="background:#333">--dark<small>#333</small></div>
+  <div class="sw" style="background:#fff;color:#1c1c1c;border-color:rgba(0,0,0,.1)">--light<small>#fff</small></div>
+</div></body></html>

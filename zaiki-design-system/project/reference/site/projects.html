@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Projects by Muhd Uzair including web applications, system design, and creative computing work."
+    />
+    <title>Projects - zaiki</title>
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/education.css" />
+    <link rel="stylesheet" href="css/achievements.css" />
+    <link rel="stylesheet" href="css/homepage.css" />
+    <link rel="stylesheet" href="css/projects.css" />
+    <link rel="stylesheet" href="css/skills.css" />
+    <link rel="stylesheet" href="css/misc.css" />
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+  </head>
+  <body>
+    <header>
+      <nav>
+        <div class="logo">
+          <a data-no-squish href="index.html"
+            ><img class="logo-img" src="assets/logo.jpeg" alt="zaiki" /><span
+              class="logo-text"
+              >zaiki's Portfolio</span
+            ></a
+          >
+        </div>
+        <ul class="nav-links">
+          <li><a href="about.html">About Me</a></li>
+          <li><a href="education.html">Education</a></li>
+          <li><a href="projects.html" aria-current="page">Projects</a></li>
+          <li><a href="qualities.html">Skills</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+        <div class="nav-actions">
+          <button data-no-squish id="theme-toggle" class="themebutton">
+            <span class="label">Theme</span>
+          </button>
+          <button
+            id="mobile-menu-toggle"
+            class="menubutton"
+            aria-label="Toggle Menu"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line class="middle-line" x1="3" y1="12" x2="21" y2="12"></line>
+              <line class="top-line" x1="3" y1="6" x2="21" y2="6"></line>
+              <line class="bottom-line" x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <div class="screen-top-blur"></div>
+
+    <main class="project-page">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="index.html">Home</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current">Projects</span>
+      </nav>
+
+      <section class="project-hero">
+        <p class="section-kicker">All Featured Projects</p>
+        <h1>My Work</h1>
+        <p>
+          Recent projects that showcase my skills in web development and design.
+          Click on each project to learn more about the technologies used and
+          its implementation process.
+        </p>
+      </section>
+
+      <!-- Filter bar -->
+      <div
+        class="filter-bar"
+        data-filter-bar
+        data-filter-target=".project-card-modern"
+        aria-label="Filter projects by category"
+      >
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="web-development">
+          Web Development
+        </button>
+        <button class="filter-btn" data-filter="system-design">
+          System Design
+        </button>
+        <!-- <button class="filter-btn" data-filter="creative">
+          Desktop Application
+        </button> -->
+        <!-- <button class="filter-btn" data-filter="creative">
+          Mobile Application
+        </button> -->
+        <button class="filter-btn" data-filter="personal">
+          Personal Project
+        </button>
+      </div>
+
+      <div class="project-grid">
+        <!-- Add project cards here aight -->
+
+        <a
+          class="project-card-modern"
+          href="projects/CareerReady.html"
+          tabindex="0"
+          data-category="system-design"
+        >
+          <div class="project-visual bg-gradient-3">
+            <img
+              class="project-thumb"
+              src="assets/CareerReady/dashboard-mockup.jpg"
+              alt="CineTrack preview"
+              loading="lazy"
+            />
+          </div>
+          <div class="project-details">
+            <div class="project-tags">
+              <span class="tag tag-system">System Design</span>
+            </div>
+            <h4>CareerReady: Student Career Roadmap Planner</h4>
+            <p>
+              A desktop career planning tool that calculates a personalised
+              readiness score, identifies skill gaps, and generates a milestone
+              roadmap to help university students track and improve their career
+              readiness.
+            </p>
+          </div>
+        </a>
+
+        <a
+          class="project-card-modern"
+          href="projects/Workshop 1.html"
+          tabindex="0"
+          data-category="system-design personal"
+        >
+          <div class="project-visual bg-gradient-1">
+            <img
+              class="project-thumb"
+              src="assets/HRMS/w1-mockup.jpg"
+              alt="House Rental Management System preview"
+              loading="lazy"
+            />
+          </div>
+          <div class="project-details">
+            <div class="project-tags">
+              <span class="tag tag-system">System Design</span>
+              <span class="tag tag-personal">Personal Project</span>
+            </div>
+            <h4>House Rental Management System</h4>
+            <p>
+              A comprehensive rental property management system developed using
+              C++ and MySQL.
+            </p>
+          </div>
+        </a>
+
+        <a
+          class="project-card-modern"
+          href="projects/Attention Detector.html"
+          tabindex="0"
+          data-category="web-development"
+        >
+          <div class="project-visual bg-gradient-4">
+            <img
+              class="project-thumb"
+              src="assets/attention-detector/ai-mockup.png"
+              alt="Attention Monitoring Detector preview"
+              loading="lazy"
+            />
+          </div>
+          <div class="project-details">
+            <div class="project-tags">
+              <span class="tag tag-web">Web Development</span>
+            </div>
+            <h4>Attention Monitoring Detector</h4>
+            <p>
+              A machine learning-based solution to monitor user attention and
+              provide actionable insights.
+            </p>
+          </div>
+        </a>
+
+        <a
+          class="project-card-modern"
+          href="projects/Network-design.html"
+          tabindex="0"
+          data-category="system-design"
+        >
+          <div class="project-visual bg-gradient-2">
+            <img
+              class="project-thumb"
+              src="assets/Cyber Cat Cafe/3c-diagram.jpg"
+              alt="Network Design for Cyber Cat Cafe preview"
+              loading="lazy"
+            />
+          </div>
+          <div class="project-details">
+            <div class="project-tags">
+              <span class="tag tag-system">System Design</span>
+            </div>
+            <h4>Network Design for Cyber Cat Café</h4>
+            <p>
+              A responsive network design solution for a fictional cyber cat
+              café.
+            </p>
+          </div>
+        </a>
+
+        <a
+          class="project-card-modern"
+          href="projects/CineTrack.html"
+          tabindex="0"
+          data-category="system-design"
+        >
+          <div class="project-visual bg-gradient-3">
+            <img
+              class="project-thumb"
+              src="assets/CineTrack/cli-app-mockup.jpg"
+              alt="CineTrack preview"
+              loading="lazy"
+            />
+          </div>
+          <div class="project-details">
+            <div class="project-tags">
+              <span class="tag tag-system">System Design</span>
+            </div>
+            <h4>CineTrack: A Smart Movie Tracker System</h4>
+            <p>
+              A command-line movie tracker to manage data dynamically using
+              linked lists and demonstrates searching and sorting.
+            </p>
+          </div>
+        </a>
+
+        <a
+          class="project-card-modern"
+          href="projects/CS-TCA.html"
+          tabindex="0"
+          data-category="system-design"
+        >
+          <div class="project-visual bg-gradient-5">
+            <img
+              class="project-thumb"
+              src="assets/CS TCA System/cs-tca-mockup.jpg"
+              alt="CS Training Centre Application System preview"
+              loading="lazy"
+            />
+          </div>
+          <div class="project-details">
+            <div class="project-tags">
+              <span class="tag tag-system">System Design</span>
+            </div>
+            <h4>CS Training Centre Application System</h4>
+            <p>
+              A console-based application developed in C++ to automate the
+              process of course registration and booking for a training centre.
+            </p>
+          </div>
+        </a>
+      </div>
+    </main>
+
+    <footer>
+      <small>&copy; 2026 zaiki. All rights reserved.</small>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

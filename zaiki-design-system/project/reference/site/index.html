@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Portfolio of Muhd Uzair - Web & App Developer, Designer, and Creator based in Malaysia." />
+    <title>Muhd Uzair - Web Developer & Designer | zaiki</title>
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/education.css" />
+    <link rel="stylesheet" href="css/achievements.css" />
+    <link rel="stylesheet" href="css/homepage.css" />
+    <link rel="stylesheet" href="css/projects.css" />
+    <link rel="stylesheet" href="css/skills.css" />
+    <link rel="stylesheet" href="css/misc.css" />
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+  </head>
+
+  <body>
+    <header>
+      <nav>
+        <div class="logo">
+          <a data-no-squish href="index.html" aria-current="page">
+            <img class="logo-img" src="assets/logo.jpeg" alt="zaiki" />
+            <span class="logo-text" >zaiki's Portfolio</span>
+          </a>
+        </div>
+
+        <ul class="nav-links">
+          <li><a href="about.html">About Me</a></li>
+          <li><a href="education.html">Education</a></li>
+          <li><a href="projects.html">Projects</a></li>
+          <li><a href="qualities.html">Skills</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+
+        <div class="nav-actions">
+          <button data-no-squish id="theme-toggle" class="themebutton">
+            <span class="label">Theme</span>
+          </button>
+          <button
+            id="mobile-menu-toggle"
+            class="menubutton"
+            aria-label="Toggle Menu"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line class="middle-line" x1="3" y1="12" x2="21" y2="12"></line>
+              <line class="top-line" x1="3" y1="6" x2="21" y2="6"></line>
+              <line class="bottom-line" x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <!-- Main Content -->
+    <div class="screen-top-blur"></div>
+
+    <main class="home-page">
+      <!-- Hero Section -->
+      <section class="hero hero-modern">
+        <div class="hero-noise" aria-hidden="true"></div>
+        <div class="hero-content">
+          <p class="hero-greeting">Hi there 👋, I'm</p>
+          <h1 class="hero-title">
+            Muhd <span class="highlight text-gradient">Uzair</span>
+          </h1>
+          <p class="hero-subtitle">
+            Web & App Developer &middot; Designer &middot; Creator
+          </p>
+          <p class="hero-description">
+            Computing student with a thing for clean, functional interface and the code behind them.
+          </p>
+          <div class="hero-ctas">
+            <a href="#projects" class="cta-primary">View My Work</a>
+            <a href="#contactsection" class="cta-secondary">Get in Touch</a>
+          </div>
+        </div>
+        <div class="hero-card-edge" aria-hidden="true">
+          <span class="scroll-hint">
+            <span class="scroll-hint-text">Scroll Down</span>
+            <svg
+              class="scroll-hint-arrow"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </span>
+        </div>
+      </section>
+
+      <!-- About Section (Bento Grid) -->
+      <section id="about" class="about bento-section">
+        <h2 class="section-title">About Me</h2>
+        <div class="bento-grid">
+          <a
+            href="about.html"
+            class="bento-card bento-card-main"
+            aria-label="Read full about me"
+          >
+            <div class="bento-content">
+              <h3>Who I Am</h3>
+              <p>
+                I'm a passionate developer who loves creating clean and simple
+                designs with functionality in mind. Always eager to learn and
+                work on exciting projects.
+              </p>
+              <span class="bento-link-text">Read full story &rarr;</span>
+            </div>
+          </a>
+          <a href="qualities.html" class="bento-card bento-card-skills">
+            <div class="bento-content">
+              <h3>Core Tools</h3>
+              <div class="bento-skills">
+                <span>HTML</span>
+                <span>CSS</span>
+                <span>JavaScript</span>
+                <span>C++</span>
+                <span>Java</span>
+                <span>Git</span>
+                <span>MySQL</span>
+              </div>
+            </div>
+          </a>
+          <a href="education.html" class="bento-card bento-card-edu">
+            <div class="bento-content">
+              <h3>Education</h3>
+              <p><strong>BSc. Computer Science</strong></p>
+              <p class="text-sub">Interactive Media</p>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      <!-- Projects Section -->
+      <section id="projects" class="projects modern-projects">
+        <h2 class="section-title">Featured Projects</h2>
+        <div class="project-grid">
+          <a
+            class="project-card-modern"
+            href="projects/Attention Detector.html"
+            data-category="web-development"
+          >
+            <div class="project-visual bg-gradient-4">
+              <img class="project-thumb" src="assets/attention-detector/ai-mockup.png" alt="Attention Monitoring Detector preview" loading="lazy" />
+            </div>
+            <div class="project-details">
+              <div class="project-tags">
+                <span class="tag tag-web">Web Development</span>
+              </div>
+              <h4>Attention Monitoring Detector</h4>
+              <p>
+                A machine learning-based solution to monitor user attention and
+                provide actionable insights.
+              </p>
+            </div>
+          </a>
+          <a
+            class="project-card-modern"
+            href="projects/Workshop 1.html"
+            data-category="system-design personal"
+          >
+            <div class="project-visual bg-gradient-1">
+              <img class="project-thumb" src="assets/HRMS/w1-mockup.jpg" alt="House Rental Management System preview" loading="lazy" />
+            </div>
+            <div class="project-details">
+              <div class="project-tags">
+                <span class="tag tag-system">System Design</span>
+                <span class="tag tag-personal">Personal Project</span>
+              </div>
+              <h4>House Rental Management System</h4>
+              <p>
+                A comprehensive rental property management system developed
+                using C++ and MySQL.
+              </p>
+            </div>
+          </a>
+          <a
+            class="project-card-modern"
+            href="projects/CineTrack.html"
+            data-category="system-design"
+          >
+            <div class="project-visual bg-gradient-3">
+              <img class="project-thumb" src="assets/CineTrack/cli-app-mockup.jpg" alt="CineTrack preview" loading="lazy" />
+            </div>
+            <div class="project-details">
+              <div class="project-tags">
+                <span class="tag tag-system">System Design</span>
+              </div>
+              <h4>CineTrack: A Smart Movie Tracker System</h4>
+              <p>
+                A command-line movie tracker to manage data dynamically using
+                linked lists and demonstrates searching and sorting.
+              </p>
+            </div>
+          </a>
+        </div>
+        <div class="view-more-container">
+          <a href="projects.html" class="view-more-btn">View All Projects &rarr;</a>
+        </div>
+      </section>
+
+      <!-- Contact Section -->
+      <section id="contactsection" class="contact-modern">
+        <div class="contact-banner">
+          <h2>Got an idea or just want to talk tech? Give a heads up!</h2>
+          <p>
+            Currently heads-down (pun intended) as a Computer Science student -
+            but genuinely open to collaboration ideas and a good conversation.
+          </p>
+          <div class="contact-links">
+            <a class="contact-pill" href="mailto:shamsulzire@gmail.com">
+              Email Me
+            </a>
+            <a
+              class="contact-pill"
+              href="https://www.linkedin.com/in/muhd-uzair-473333378/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              LinkedIn
+            </a>
+            <a
+              class="contact-pill"
+              href="https://github.com/zaiki505"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <button
+        class="scroll-peek"
+        data-scroll-to="#about"
+        data-no-squish
+        aria-label="Scroll to learn more about me"
+      >
+        <span class="scroll-peek-deck" aria-hidden="true">
+          <span class="peek-card"></span>
+          <span class="peek-card"></span>
+          <span class="peek-card"></span>
+        </span>
+      </button>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <div><small>&copy; 2026 zaiki. All Rights Reserved.</small></div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

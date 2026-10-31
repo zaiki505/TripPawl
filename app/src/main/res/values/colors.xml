@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Zaiki Design System page background (bg-page) -->
+    <color name="zaiki_bg_page">#FF141418</color>
+</resources>

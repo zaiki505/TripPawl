@@ -1,0 +1,1027 @@
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap");
+
+:root {
+  --light: rgb(255, 255, 255);
+  --dark: #333;
+  --highlight: #a754ff;
+  --lightFont: white;
+  --darkFont: #1c1c1c;
+  --available: #00e676;
+  --unavailable: #ff1744;
+}
+
+/* Reset some defaults */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ==================== ANIMATIONS ==================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes navPillIntro {
+  from {
+    opacity: 0;
+    filter: blur(18px);
+    transform: translateX(-50%) translateY(-9rem) scaleX(0.35);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateX(-50%) translateY(0) scaleX(1);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translateY(-32px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleInFade {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideOutUp {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translateY(-32px);
+  }
+}
+
+@keyframes slideOutDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+}
+
+/* Global Squish Click Interaction Animation */
+@keyframes uiPop {
+  0% {
+    scale: 1 1;
+  }
+  30% {
+    scale: 0.9 1.1;
+  }
+  50% {
+    scale: 1.1 0.9;
+  }
+  70% {
+    scale: 0.97 1.03;
+  }
+  100% {
+    scale: 1 1;
+  }
+}
+
+.ui-clicked {
+  animation: uiPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+/* Ensure inline links/buttons support transform during the animation */
+a.ui-clicked:not([style*="display"]),
+span.ui-clicked:not([style*="display"]) {
+  display: inline-block;
+}
+
+/*Dark Theme (DEFAULT)*/
+body {
+  font-family: "JetBrains Mono", monospace;
+  line-height: 1.6;
+  background: #141418; /* fallback for browsers without relative lab() */
+  background: lab(from var(--dark) 12 a b);
+  color: var(--lightFont);
+  z-index: 1;
+  transition:
+    background-color 0.45s ease-in-out,
+    color 0.45s ease-in-out;
+  padding-top: 5rem;
+}
+
+/* While the theme is toggling, cross-fade colours on EVERY element with a smooth ease-in-out, so the whole page transitions seamlessly.
+   Applied only during the toggle (a class is added then removed in JS) so it never affects normal interactions. The cat pupils are excluded so their
+   shape-morph keeps its own springy timing. */
+body.theme-transition,
+body.theme-transition *:not(.cat-pupil-wrap):not(.cat-pupil) {
+  transition-property: background-color, color, border-color, box-shadow, fill,
+    stroke, outline-color !important;
+  transition-duration: 0.5s !important;
+  transition-timing-function: ease-in-out !important;
+}
+
+/* Adaptive nav: rather than recolouring the (constant) text, the frosted pill
+   itself adapts - JS sets --nav-scrim from the luminance of the content behind
+   the header, darkening the scrim over light content so the text always stays
+   readable, and keeping it subtle over dark content. See `header` background. */
+
+/* Layered "stack slide-in" - blur + slide from the top, layer by layer */
+@keyframes stackSlideIn {
+  from {
+    opacity: 0;
+    filter: blur(16px);
+    transform: translateY(-44px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Header keeps its translateX(-50%) centering while dropping in */
+@keyframes headerDropIn {
+  from {
+    opacity: 0;
+    filter: blur(14px);
+    transform: translateX(-50%) translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+body:not(.exit):not(.nav-intro) header {
+  animation: headerDropIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+body:not(.exit) main > *,
+body:not(.exit) footer {
+  animation: stackSlideIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+body:not(.exit) main > *:nth-child(1) {
+  animation-delay: 0.1s;
+}
+body:not(.exit) main > *:nth-child(2) {
+  animation-delay: 0.18s;
+}
+body:not(.exit) main > *:nth-child(3) {
+  animation-delay: 0.26s;
+}
+body:not(.exit) main > *:nth-child(4) {
+  animation-delay: 0.34s;
+}
+body:not(.exit) main > *:nth-child(5) {
+  animation-delay: 0.42s;
+}
+body:not(.exit) main > *:nth-child(6) {
+  animation-delay: 0.5s;
+}
+body:not(.exit) main > *:nth-child(7) {
+  animation-delay: 0.58s;
+}
+body:not(.exit) main > *:nth-child(n + 8) {
+  animation-delay: 0.66s;
+}
+body:not(.exit) footer {
+  animation-delay: 0.55s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.exit) header,
+  body:not(.exit) main > *,
+  body:not(.exit) footer {
+    animation: none;
+  }
+}
+
+body.exit .hero,
+body.exit .about,
+body.exit .projects,
+body.exit .contactsection,
+body.exit main,
+body.exit footer {
+  animation: slideOutUp 0.55s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+  animation-delay: 0s;
+}
+
+header {
+  background: rgba(0, 0, 0, 0.195);
+  background: rgba(var(--nav-scrim-rgb, 0, 0, 0), var(--nav-scrim, 0.195));
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--lightFont);
+  padding: clamp(0.6rem, 1.2vw, 0.8rem) clamp(1rem, 2.5vw, 2rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: clamp(0.8rem, 1.6vw, 1.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
+  transition: all 0.5s ease-in-out;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  border-radius: 50px;
+  width: clamp(20rem, 90vw, 1200px);
+  max-width: 1200px;
+  isolation: isolate;
+}
+
+header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(129, 129, 129, 0.096);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  z-index: -1;
+  pointer-events: none;
+  transition: all 0.5s ease-in-out;
+}
+
+body.nav-intro header {
+  animation: navPillIntro 2.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top center;
+}
+
+nav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+}
+
+/* ensure nav children render above the blur */
+nav > * {
+  position: relative;
+  z-index: 1;
+}
+
+.logo {
+  font-size: clamp(0.8rem, 1.2vw, 1rem);
+  text-align: left;
+  white-space: nowrap;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  justify-self: start;
+  min-width: 0;
+}
+
+.logo-img {
+  display: block;
+  height: clamp(1.65rem, 3.2vw, 4rem);
+  width: clamp(1.65rem, 3.2vw, 4rem);
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+  margin-right: 0;
+  transition:
+    height 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    width 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.55s ease,
+    filter 0.8s ease,
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.logo-text {
+  display: inline-block;
+  max-width: 12rem;
+  margin-left: 0.5rem;
+  overflow: hidden;
+  opacity: 1;
+  filter: blur(0);
+  transform: translateX(0);
+  white-space: nowrap;
+  transition:
+    max-width 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    margin-left 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.55s ease,
+    filter 0.8s ease,
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.logo a {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  text-decoration: none;
+  color: var(--lightFont);
+  transition: color 0.4s;
+}
+
+.logo a:hover {
+  color: var(--highlight);
+  transform: scale(1.015);
+  transition: all 0.6s ease-in-out;
+}
+
+.logo a:active {
+  transition: all 0.2s ease-in-out;
+  transform: translateY(3px) scale(0.95);
+}
+
+.logo-text:hover {
+  color: var(--highlight);
+}
+
+.logo-img:hover {
+  box-shadow: 0 4px 20px rgba(167, 84, 255, 0.4);
+}
+
+.nav-links {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60%;
+  gap: clamp(0.55rem, 1.35vw, 1.5rem);
+  justify-self: center;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+  position: relative;
+}
+
+/* Gliding active-page pill indicator (desktop).
+   The outer element handles position (translate) + size, the inner fill
+   handles the squish so the two transforms don't collide. */
+.nav-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 0;
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  /* bouncy glide between pages */
+  transition:
+    transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+    width 0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+    height 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.nav-indicator.is-ready {
+  opacity: 1;
+}
+
+.nav-indicator-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(167, 84, 255, 0.14);
+  border: 1px solid rgba(167, 84, 255, 0.28);
+  transform-origin: center;
+}
+
+/* squish stretch while travelling */
+.nav-indicator.is-gliding .nav-indicator-fill {
+  animation: navPillSquish 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes navPillSquish {
+  0% {
+    transform: scaleX(1) scaleY(1);
+  }
+  35% {
+    transform: scaleX(1.14) scaleY(0.82);
+  }
+  70% {
+    transform: scaleX(0.95) scaleY(1.07);
+  }
+  100% {
+    transform: scaleX(1) scaleY(1);
+  }
+}
+
+/* bounce in-place when re-clicking the current page link */
+.nav-indicator.is-clicking .nav-indicator-fill,
+.nav-links a:active {
+  animation: navPillClick 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes navPillClick {
+  0%   { transform: scaleX(1)    scaleY(1); }
+  30%  { transform: scaleX(1.12) scaleY(0.78); }
+  60%  { transform: scaleX(0.95) scaleY(1.1); }
+  100% { transform: scaleX(1)    scaleY(1); }
+}
+
+/* current-page link text mirrors the pill bounce instead of uiPop */
+.nav-links a.pill-sync.ui-clicked {
+  animation: navPillClick 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+/* Keep the links painted above the gliding indicator */
+.nav-links a {
+  z-index: 1;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+}
+
+.nav-links a {
+  color: var(--lightFont);
+  font-size: clamp(15px, 1.4vw, 18px);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 0.2rem 0.45rem;
+  transition: color 0.35s ease-in-out;
+}
+
+.nav-links a:hover {
+  color: var(--highlight);
+}
+
+.nav-links a[aria-current="page"] {
+  color: var(--highlight);
+  background: transparent;
+  border: 1px solid transparent;
+  animation: disable;
+}
+
+.nav-links a[aria-current="page"]::after {
+  display: none;
+}
+
+.logo a,
+.hero a,
+.nav-links a,
+.about a,
+.contactsection a {
+  text-decoration: none;
+}
+
+.logo a:visited,
+.logo a:active,
+.logo a:focus {
+  text-decoration: none;
+  color: var(--lightFont);
+  transform: scale(1.015);
+  transition: all 0.6s ease;
+}
+
+.hero {
+  text-align: center;
+  padding: clamp(4rem, 8vw, 6rem) clamp(1rem, 5vw, 2.5rem);
+  background: #20202a;
+  background: lab(from var(--dark) 20 a b);
+  color: var(--lightFont);
+}
+
+.hero .highlight {
+  color: var(--highlight);
+}
+
+.hero a,
+.hero a:hover {
+  text-decoration: none;
+  color: var(--highlight);
+  font-weight: bold;
+}
+
+.about,
+.projects,
+.contactsection {
+  padding: clamp(3rem, 8vw, 6rem) clamp(1rem, 5vw, 2.5rem);
+  text-align: center;
+}
+
+.about {
+  animation-delay: 0.2s;
+}
+
+.projects {
+  animation-delay: 0.4s;
+}
+
+.contactsection {
+  animation-delay: 0.6s;
+}
+
+.about-block {
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  padding: clamp(1.5rem, 5vw, 2rem) clamp(1.25rem, 6vw, 3rem);
+  border-radius: 15px;
+  width: min(100%, 640px);
+  height: auto;
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.08);
+  transition: all 0.6s ease;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  color: var(--lightFont);
+}
+
+.about-link {
+  display: block;
+  width: min(100%, 640px);
+  margin: 0 auto;
+  text-decoration: none;
+  color: inherit;
+}
+
+.about-link .about-block {
+  cursor: pointer;
+}
+
+.about-block:hover {
+  background: lab(from var(--dark) 25 a b);
+  color: lab(from var(--highlight) l a b);
+  padding: clamp(1.5rem, 5vw, 2rem) clamp(1.25rem, 6vw, 3rem);
+  border-radius: 15px;
+  transform: translate(0px, -5px);
+  box-shadow: 0 5px 20px lab(from var(--highlight) 40 a b);
+  cursor: pointer;
+  transition: all 0.6s;
+}
+
+.about-page,
+.education-page,
+.project-page,
+.projects-page,
+.qualities-page,
+.resume-page,
+.case-study-page,
+.contact-page {
+  width: min(1120px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: clamp(2.5rem, 6vw, 5rem) 0;
+}
+
+/* ---- Breadcrumb navigation ---- */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: clamp(0.75rem, 1.2vw, 0.82rem);
+  font-weight: 500;
+  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(167, 84, 255, 0.07);
+  border: 1px solid rgba(167, 84, 255, 0.15);
+  width: fit-content;
+  user-select: none;
+}
+
+.breadcrumb a {
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+
+.breadcrumb a:hover {
+  color: var(--highlight);
+}
+
+.breadcrumb-sep {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 0.7rem;
+}
+
+.breadcrumb-current {
+  color: var(--highlight);
+  font-weight: 600;
+}
+
+body.light .breadcrumb {
+  background: rgba(167, 84, 255, 0.06);
+  border-color: rgba(167, 84, 255, 0.18);
+}
+
+body.light .breadcrumb a {
+  color: rgba(28, 28, 28, 0.5);
+}
+
+body.light .breadcrumb a:hover {
+  color: var(--highlight);
+}
+
+body.light .breadcrumb-sep {
+  color: rgba(28, 28, 28, 0.22);
+}
+
+body.light .breadcrumb-current {
+  color: var(--highlight);
+}
+
+.about-hero,
+.education-hero,
+.project-hero,
+.qualities-hero,
+.case-hero,
+.contact-hero {
+  max-width: 760px;
+  margin: 0 auto clamp(2rem, 5vw, 4rem);
+  text-align: center;
+}
+
+.section-kicker {
+  color: var(--highlight);
+  font-size: clamp(0.78rem, 1.2vw, 0.9rem);
+  font-weight: bold;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.about-hero h1,
+.education-hero h1,
+.project-hero h1,
+.qualities-hero h1,
+.case-hero h1,
+.contact-hero h1 {
+  font-size: clamp(2rem, 3vw, 4.5rem);
+  line-height: 1.05;
+  margin-bottom: 1rem;
+}
+
+.about-hero p,
+.education-hero p,
+.project-hero p,
+.qualities-hero p,
+.case-hero p,
+.contact-hero p,
+.profile-copy p,
+.detail-panel p {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.about-profile {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(1.5rem, 5vw, 4rem);
+  margin-bottom: clamp(1.5rem, 4vw, 3rem);
+}
+
+.profile-photo {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(
+      circle at 35% 25%,
+      rgba(255, 255, 255, 0.24),
+      transparent 32%
+    ),
+    linear-gradient(
+      135deg,
+      lab(from var(--highlight) 35 a b),
+      lab(from var(--dark) 22 a b)
+    );
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.24);
+  color: var(--lightFont);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: bold;
+  fit-content: contain;
+  overflow: hidden;
+}
+
+.profile-photo img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.profile-photo.coin-photo {
+  perspective: 1000px;
+  cursor: pointer;
+}
+.profile-photo .coin-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.5, 0.05, 0.2, 1);
+  border-radius: 50%;
+}
+.profile-photo .coin-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 15%;
+  border-radius: 50%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.profile-photo .coin-back {
+  transform: rotateY(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-photo .coin-inner {
+    transition-duration: 0.25s;
+  }
+}
+
+
+.profile-copy {
+  background: rgba(0, 0, 0, 0.32);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.profile-copy h3 {
+  font-size: clamp(1.45rem, 3vw, 2.4rem);
+  line-height: 1.15;
+  margin-bottom: 1rem;
+}
+
+.about-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  justify-content: center;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.about-actions a {
+  color: var(--lightFont);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  text-decoration: none;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease,
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.about-link {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.about-actions a:hover {
+  background: lab(from var(--dark) 25 a b);
+  color: lab(from var(--highlight) l a b);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(123, 0, 255, 0.28);
+}
+
+.about-details {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: clamp(1rem, 3vw, 1.5rem);
+}
+
+.detail-panel {
+  background: rgba(0, 0, 0, 0.28);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: clamp(1.2rem, 3vw, 2rem);
+}
+
+.detail-panel h4 {
+  color: var(--highlight);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  margin-bottom: 1rem;
+}
+
+.skill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.skill-list span {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--lightFont);
+  padding: 0.45rem 0.75rem;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.skill-group {
+  margin-top: 1.25rem;
+}
+
+.skill-tier-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tier-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.tier-dot.advanced {
+  background-color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.tier-dot.intermediate {
+  background-color: #eab308;
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.4);
+}
+
+.tier-dot.beginner {
+  background-color: #f97316;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+}
+
+.tier-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+  color: var(--lightFont);
+}
+
+body.light .tier-name {
+  color: var(--darkFont);
+}
+
+.skill-list span.advanced {
+  border-left: 3px solid #10b981;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.skill-list span.intermediate {
+  border-left: 3px solid #eab308;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.skill-list span.beginner {
+  border-left: 3px solid #f97316;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+body.light .skill-list span.advanced {
+  border-left-color: #10b981;
+}
+
+body.light .skill-list span.intermediate {
+  border-left-color: #eab308;
+}
+
+body.light .skill-list span.beginner {
+  border-left-color: #f97316;
+}
+
+.skill-list span:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+body.light .skill-list span:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.timeline {
+  display: grid;
+  gap: 1rem;
+}
+
+.institution-icon {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 1);
+  border: 1px dashed rgba(255, 255, 255, 0.5);
+  display: flex;
+  overflow: hidden;
+  border-radius: 20%;
+  align-items: center;
+  justify-content: center;
+}
+
+.institution-logo {
+  width: 85%;
+  height: 85%;
+  object-fit: contain;
+}
+
+.timeline-item,
+.evidence-card,
+.quality-card,
+.case-panel,
+.hci-panel,
+.resume-sheet {
+  background: rgba(0, 0, 0, 0.32);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.16);
+}
+
+.timeline-content {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr);
+  gap: clamp(2rem, 3vw, 2rem);
+  padding: clamp(1.1rem, 3vw, 1.8rem);
+}
+
+.timeline-year {
+  color: var(--highlight);
+  font-weight: bold;
+}
+
+.quality-card span,
+.evidence-card span {
+  color: var(--highlight);
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.timeline-item h3,
+.quality-card h3,
+.case-panel h2,
+.hci-panel h2 {
+  margin-bottom: 0.75rem;
+}
+
+.quality-card h3 {
+  color: var(--highlight);
+}
+
+.timeline-item ul,
+.hci-panel ul {
+  margin: 1rem 0 0 1.2rem;
+}
+
