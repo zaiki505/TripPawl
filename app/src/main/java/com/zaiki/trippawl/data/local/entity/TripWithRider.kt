@@ -48,7 +48,8 @@ data class TripWithRider(
         isRecurring = trip.isRecurring,
         recurrenceInterval = trip.recurrenceInterval,
         recurrenceUnit = RecurrenceUnit.fromNameOrNone(trip.recurrenceUnit),
-        nextOccurrenceDate = trip.nextOccurrenceDate
+        nextOccurrenceDate = trip.nextOccurrenceDate,
+        recurrenceEndDate = trip.recurrenceEndDate
     )
 }
 
@@ -58,16 +59,12 @@ data class TripWithRider(
 data class RiderDebtSummaryTuple(
     @Embedded
     val rider: RiderEntity,
-    val unpaidBalance: Double,
-    val unpaidTripCount: Int,
-    val settledAmount: Double,
-    val totalTripsCount: Int
+    val tripCount: Int,
+    val totalDebt: Double
 ) {
     fun toDomainModel(): RiderDebtSummary = RiderDebtSummary(
         rider = rider.toDomainModel(),
-        unpaidBalance = unpaidBalance,
-        unpaidTripCount = unpaidTripCount,
-        settledAmount = settledAmount,
-        totalTripsCount = totalTripsCount
+        unpaidTripCount = tripCount,
+        totalUnpaidAmount = totalDebt
     )
 }

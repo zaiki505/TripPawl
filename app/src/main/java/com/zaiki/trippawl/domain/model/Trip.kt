@@ -1,6 +1,9 @@
 package com.zaiki.trippawl.domain.model
 
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 /**
  * Supported recurrence units for recurring carpool trips (Every X Day / Week / Month / Year).
@@ -76,13 +79,20 @@ data class Trip(
     val isRecurring: Boolean = false,
     val recurrenceInterval: Int = 1,
     val recurrenceUnit: RecurrenceUnit = RecurrenceUnit.NONE,
-    val nextOccurrenceDate: Long? = null
+    val nextOccurrenceDate: Long? = null,
+    val recurrenceEndDate: Long? = null
 ) {
     val recurrenceSummaryLabel: String?
         get() {
             if (!isRecurring || recurrenceUnit == RecurrenceUnit.NONE || recurrenceInterval <= 0) return null
             val unitWord = if (recurrenceInterval == 1) recurrenceUnit.singular else recurrenceUnit.plural
-            return "Every $recurrenceInterval $unitWord"
+            val repeatText = "Every $recurrenceInterval $unitWord"
+            return if (recurrenceEndDate != null) {
+                val dateStr = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(recurrenceEndDate))
+                "$repeatText until $dateStr"
+            } else {
+                repeatText
+            }
         }
 }
 
@@ -115,7 +125,8 @@ data class GroupedTrip(
     val isRecurring: Boolean = false,
     val recurrenceInterval: Int = 1,
     val recurrenceUnit: RecurrenceUnit = RecurrenceUnit.NONE,
-    val nextOccurrenceDate: Long? = null
+    val nextOccurrenceDate: Long? = null,
+    val recurrenceEndDate: Long? = null
 ) {
     val passengerCount: Int
         get() = maxOf(passengerShares.size, passengerShares.firstOrNull()?.passengerCount ?: 1)
@@ -158,7 +169,13 @@ data class GroupedTrip(
         get() {
             if (!isRecurring || recurrenceUnit == RecurrenceUnit.NONE || recurrenceInterval <= 0) return null
             val unitWord = if (recurrenceInterval == 1) recurrenceUnit.singular else recurrenceUnit.plural
-            return "Every $recurrenceInterval $unitWord"
+            val repeatText = "Every $recurrenceInterval $unitWord"
+            return if (recurrenceEndDate != null) {
+                val dateStr = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(recurrenceEndDate))
+                "$repeatText until $dateStr"
+            } else {
+                repeatText
+            }
         }
 }
 
@@ -202,7 +219,8 @@ fun List<Trip>.groupByTripSession(): List<GroupedTrip> {
                 isRecurring = first.isRecurring,
                 recurrenceInterval = first.recurrenceInterval,
                 recurrenceUnit = first.recurrenceUnit,
-                nextOccurrenceDate = first.nextOccurrenceDate
+                nextOccurrenceDate = first.nextOccurrenceDate,
+                recurrenceEndDate = first.recurrenceEndDate
             )
         }
         .sortedByDescending { it.tripDate }

@@ -28,4 +28,8 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun resetToDefaults() {
         settingsDataStore.resetToDefaults()
     }
+
+    override suspend fun setLastUnpaidReminderTimestamp(timestamp: Long) {
+        settingsDataStore.setLastUnpaidReminderTimestamp(timestamp)
+    }
 }

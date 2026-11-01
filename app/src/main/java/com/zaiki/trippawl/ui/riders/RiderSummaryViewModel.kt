@@ -139,10 +139,10 @@ class RiderSummaryViewModel @Inject constructor(
                         phone = cleanedPhone
                     )
                 )
-                statusBannerFlow.value = "Updated rider details for $trimmedName! ✨"
+                statusBannerFlow.value = "Updated rider details for $trimmedName."
             } else {
                 riderRepository.getOrCreateRiderByName(trimmedName, cleanedPhone)
-                statusBannerFlow.value = "Added $trimmedName to your carpool roster! ✨"
+                statusBannerFlow.value = "Added $trimmedName to your carpool roster."
             }
             riderEditorSheetFlow.value = null
         }
@@ -174,7 +174,7 @@ class RiderSummaryViewModel @Inject constructor(
         viewModelScope.launch {
             val settledCount = tripRepository.settleAllUnpaidTripsForRider(rider.id)
             statusBannerFlow.value = if (settledCount > 0) {
-                "Settled $settledCount unpaid trip(s) for ${rider.name}! ✨"
+                "Settled $settledCount unpaid trip(s) for ${rider.name}."
             } else {
                 "${rider.name} is already fully settled!"
             }
@@ -195,7 +195,7 @@ class RiderSummaryViewModel @Inject constructor(
         viewModelScope.launch {
             val count = driveTrackingManager.sendUnpaidTripsNotificationAlert()
             statusBannerFlow.value = if (count > 0) {
-                "🔔 Driver reminder notification sent ($count unpaid trip(s) still to collect)!"
+                "Driver reminder notification sent ($count unpaid trip(s) still to collect)."
             } else {
                 "All payments have been collected!"
             }

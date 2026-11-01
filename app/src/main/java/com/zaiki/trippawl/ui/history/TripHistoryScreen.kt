@@ -112,7 +112,7 @@ fun TripHistoryScreen(
                 )
             }
 
-            // 2. Search Bar & Filter Chips ("All", "Unpaid Only", "Paid Only", "🔔 Alert Unpaid")
+            // 2. Search Bar & Filter Chips ("All", "Unpaid Only", "Paid Only", "Alert Unpaid")
             item {
                 ZaikiBentoCard(contentPadding = PaddingValues(ZaikiDimens.CardPaddingCompact)) {
                     ZaikiFormField(
@@ -120,7 +120,7 @@ fun TripHistoryScreen(
                         value = uiState.searchQuery,
                         onValueChange = viewModel::onSearchQueryChange,
                         placeholder = "Search by trip name or pax...",
-                        suffix = if (uiState.searchQuery.isNotEmpty()) "ACTIVE" else "🔍"
+                        suffix = if (uiState.searchQuery.isNotEmpty()) "ACTIVE" else null
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(
@@ -149,7 +149,7 @@ fun TripHistoryScreen(
                         )
                         if (uiState.unpaidTripsCount > 0) {
                             ZaikiFilterChip(
-                                label = "🔔 Remind Me to Collect",
+                                label = "Remind to Collect",
                                 selected = false,
                                 onClick = viewModel::sendUnpaidAlertForAll
                             )
@@ -256,14 +256,14 @@ fun TripHistoryScreen(
                         text = "Pax: ${selectedGroup.passengerNamesSummary}\n" +
                             "Total: ${formatMoney(currency, selectedGroup.totalPassengersFare)} " +
                             "(${formatMoney(currency, selectedGroup.sharePerPerson)} / pax)" +
-                            (if (selectedGroup.waivedCount > 0) "\nWaived: 🎁 ${selectedGroup.waivedCount} share(s) (${formatMoney(currency, selectedGroup.waivedTotalFare)})" else "") +
-                            (selectedGroup.recurrenceSummaryLabel?.let { "\nRecurrence: 🔁 $it" } ?: ""),
+                            (if (selectedGroup.waivedCount > 0) "\nWaived: ${selectedGroup.waivedCount} share(s) (${formatMoney(currency, selectedGroup.waivedTotalFare)})" else "") +
+                            (selectedGroup.recurrenceSummaryLabel?.let { "\nRecurrence: $it" } ?: ""),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textBody
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     ZaikiPrimaryButton(
-                        text = "✎ Edit Trip Details (Date, Fuel, Riders)",
+                        text = "Edit Trip Details (Date, Fuel, Riders)",
                         onClick = {
                             val id = selectedGroup.primaryTripId
                             viewModel.dismissGroupActionsDialog()
@@ -273,14 +273,14 @@ fun TripHistoryScreen(
                     )
                     if (!selectedGroup.isAllPaid) {
                         ZaikiSecondaryButton(
-                            text = "🔔 Remind Me to Collect Payment",
+                            text = "Remind Me to Collect Payment",
                             onClick = { viewModel.sendUnpaidAlertForGroup(selectedGroup) },
                             isAccentTinted = true,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                     ZaikiSecondaryButton(
-                        text = if (selectedGroup.isAllPaid) "Mark All Unpaid" else "✓ Mark All Paid",
+                        text = if (selectedGroup.isAllPaid) "Mark All Unpaid" else "Mark All Paid",
                         onClick = {
                             viewModel.toggleGroupPaymentStatus(selectedGroup)
                             viewModel.dismissGroupActionsDialog()
@@ -289,7 +289,7 @@ fun TripHistoryScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     ZaikiSecondaryButton(
-                        text = if (selectedGroup.isAllWaived) "🎁 Revert Waived Fares to Unpaid" else "🎁 Waive All Fares (Free Ride)",
+                        text = if (selectedGroup.isAllWaived) "Revert Waived Fares to Unpaid" else "Waive All Fares (Free Ride)",
                         onClick = {
                             viewModel.toggleGroupWaived(selectedGroup)
                         },
@@ -327,12 +327,12 @@ fun TripHistoryScreen(
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     ZaikiTagPill(
-                                        text = if (share.isWaived) "WAIVED 🎁" else "Waive",
+                                        text = if (share.isWaived) "WAIVED" else "Waive",
                                         category = if (share.isWaived) ZaikiTagCategory.PERSONAL else ZaikiTagCategory.SYSTEM,
                                         onClick = { viewModel.toggleSinglePassengerWaived(share) }
                                     )
                                     ZaikiTagPill(
-                                        text = if (share.isPaid) "PAID ✓" else "Unpaid",
+                                        text = if (share.isPaid) "PAID" else "Unpaid",
                                         category = if (share.isPaid) ZaikiTagCategory.WEB else ZaikiTagCategory.SYSTEM,
                                         onClick = { viewModel.toggleSinglePassengerPaid(share) }
                                     )
@@ -341,7 +341,7 @@ fun TripHistoryScreen(
                         }
                     }
                     ZaikiSecondaryButton(
-                        text = "🗑 Delete Grouped Trip",
+                        text = "Delete Grouped Trip",
                         onClick = { viewModel.deleteGroup(selectedGroup) },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -419,14 +419,14 @@ internal fun GroupedTripLedgerDetailCard(
                         )
                         group.recurrenceSummaryLabel?.let { recLabel ->
                             ZaikiTagPill(
-                                text = "🔁 $recLabel",
+                                text = recLabel,
                                 category = ZaikiTagCategory.WEB
                             )
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "👥 ${group.passengerNamesSummary}",
+                        text = group.passengerNamesSummary,
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textBody,
                         fontWeight = FontWeight.Medium,
@@ -447,7 +447,7 @@ internal fun GroupedTripLedgerDetailCard(
                     if (group.tripNotes.isNotBlank()) {
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "📝 ${group.tripNotes}",
+                            text = group.tripNotes,
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.highlight,
                             maxLines = 1,
@@ -479,7 +479,7 @@ internal fun GroupedTripLedgerDetailCard(
                             else -> colors.unavailable
                         }
                         val symbol = when {
-                            share.isWaived -> "🎁"
+                            share.isWaived -> "WAIVED"
                             share.isPaid -> "✓"
                             else -> "●"
                         }

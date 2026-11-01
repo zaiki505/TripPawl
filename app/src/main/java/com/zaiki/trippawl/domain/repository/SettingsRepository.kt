@@ -11,4 +11,5 @@ interface SettingsRepository {
     suspend fun updateSettings(settings: PricingSettings)
     suspend fun toggleDarkTheme(isDark: Boolean)
     suspend fun resetToDefaults()
+    suspend fun setLastUnpaidReminderTimestamp(timestamp: Long)
 }

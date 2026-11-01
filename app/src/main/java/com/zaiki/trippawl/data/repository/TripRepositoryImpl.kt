@@ -107,7 +107,17 @@ class TripRepositoryImpl @Inject constructor(
             val first = shares.firstOrNull() ?: continue
             val unit = first.recurrenceUnit
             val interval = first.recurrenceInterval.coerceAtLeast(1)
+            val endDate = first.recurrenceEndDate
+
             if (!first.isRecurring || unit == RecurrenceUnit.NONE) {
+                shares.forEach { share ->
+                    tripDao.updateTripRecurrenceNextDate(share.id, isRecurring = false, nextOccurrenceDate = null)
+                }
+                continue
+            }
+
+            var currentOccurrenceMillis = first.nextOccurrenceDate ?: continue
+            if (endDate != null && currentOccurrenceMillis > endDate) {
                 shares.forEach { share ->
                     tripDao.updateTripRecurrenceNextDate(share.id, isRecurring = false, nextOccurrenceDate = null)
                 }
@@ -119,7 +129,6 @@ class TripRepositoryImpl @Inject constructor(
                 tripDao.updateTripRecurrenceNextDate(share.id, isRecurring = true, nextOccurrenceDate = null)
             }
 
-            var currentOccurrenceMillis = first.nextOccurrenceDate ?: continue
             var safetyCounter = 0
 
             while (currentOccurrenceMillis <= nowMillis && safetyCounter < 12) {
@@ -129,7 +138,9 @@ class TripRepositoryImpl @Inject constructor(
                     interval = interval,
                     unit = unit
                 )
-                val isLastCatchup = nextFollowingMillis == null || nextFollowingMillis > nowMillis
+                val isNextPastEnd = endDate != null && nextFollowingMillis != null && nextFollowingMillis > endDate
+                val scheduledNext = if (isNextPastEnd) null else nextFollowingMillis
+                val isLastCatchup = scheduledNext == null || scheduledNext > nowMillis
                 val newGroupId = "grp_rec_${currentOccurrenceMillis}_${UUID.randomUUID().toString().take(8)}"
                 val durationDelta = if (first.arrivalDate != null && first.arrivalDate > first.tripDate) {
                     first.arrivalDate - first.tripDate
@@ -145,17 +156,18 @@ class TripRepositoryImpl @Inject constructor(
                         arrivalDate = durationDelta?.let { currentOccurrenceMillis + it },
                         isPaid = false,
                         settledDate = null,
-                        isRecurring = true,
+                        isRecurring = !isNextPastEnd,
                         recurrenceInterval = interval,
                         recurrenceUnit = unit,
-                        nextOccurrenceDate = if (isLastCatchup) nextFollowingMillis else null
+                        nextOccurrenceDate = if (isLastCatchup) scheduledNext else null,
+                        recurrenceEndDate = endDate
                     )
                     tripDao.insertTrip(TripEntity.fromDomainModel(spawned))
                 }
                 spawnedGroupsCount++
 
-                if (nextFollowingMillis == null) break
-                currentOccurrenceMillis = nextFollowingMillis
+                if (scheduledNext == null) break
+                currentOccurrenceMillis = scheduledNext
             }
         }
 

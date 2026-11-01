@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.zaiki.trippawl.domain.model.PricingSettings
 import com.zaiki.trippawl.domain.repository.SettingsRepository
 import com.zaiki.trippawl.tracking.DriveTrackingForegroundService
@@ -14,6 +15,7 @@ import com.zaiki.trippawl.tracking.DriveTrackingManager
 import com.zaiki.trippawl.ui.navigation.TripPawlNavHost
 import com.zaiki.trippawl.ui.theme.ZaikiTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -49,6 +51,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         driveTrackingManager.ensureSpeedThresholdMonitorRunning()
+        lifecycleScope.launch {
+            driveTrackingManager.checkAndPostAutomaticDriverCollectionReminder()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

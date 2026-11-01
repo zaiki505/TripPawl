@@ -233,7 +233,7 @@ fun DashboardScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "HI THERE 👋, WELCOME TO",
+                            text = "HI THERE, WELCOME TO",
                             style = MaterialTheme.typography.labelMedium,
                             color = colors.highlight,
                             fontWeight = FontWeight.Bold
@@ -322,7 +322,7 @@ fun DashboardScreen(
                         text = if (uiState.metrics.unpaidTripCount > 0) {
                             "Tap to inspect passenger balances & export to WhatsApp / Telegram →"
                         } else {
-                            "Everyone is settled up! Clean carpool slate ✨"
+                            "Everyone is settled up! Clean carpool slate."
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textMuted
@@ -335,14 +335,14 @@ fun DashboardScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             ZaikiSecondaryButton(
-                                text = "🔔 Remind Me to Collect",
+                                text = "Remind Me to Collect",
                                 isAccentTinted = true,
                                 onClick = viewModel::sendUnpaidTripsAlert,
                                 modifier = Modifier.weight(1f),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)
                             )
                             ZaikiSecondaryButton(
-                                text = "👥 View Riders →",
+                                text = "View Riders →",
                                 onClick = onViewRidersClick,
                                 modifier = Modifier.weight(1f),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)
@@ -640,7 +640,7 @@ fun DashboardScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "🚗 DRIVE STARTED · ${uiState.driveState.triggerSource.uppercase()}",
+                            text = "DRIVE STARTED · ${uiState.driveState.triggerSource.uppercase()}",
                             style = MaterialTheme.typography.labelMedium,
                             color = colors.available
                         )
@@ -1040,7 +1040,7 @@ private fun LiveDriveTelemetryCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ZaikiSecondaryButton(
-                    text = "👥 Passengers (${driveState.selectedPassengerIds.size})",
+                    text = "Passengers (${driveState.selectedPassengerIds.size})",
                     onClick = onOpenPassengerPrompt,
                     isAccentTinted = true,
                     modifier = Modifier.weight(1f),
@@ -1185,7 +1185,7 @@ private fun DriveCompletedSplitSheet(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "🏁 DRIVE COMPLETED · ${summary.gpsPointsCount} GPS COORDS",
+                            text = "DRIVE COMPLETED · ${summary.gpsPointsCount} GPS COORDS",
                             style = MaterialTheme.typography.labelMedium,
                             color = colors.available
                         )
@@ -1438,7 +1438,7 @@ private fun RecentGroupedTripDashboardCard(
                     )
                     group.recurrenceSummaryLabel?.let { recLabel ->
                         ZaikiTagPill(
-                            text = "🔁 $recLabel",
+                            text = recLabel,
                             category = ZaikiTagCategory.WEB
                         )
                     }
@@ -1447,7 +1447,7 @@ private fun RecentGroupedTripDashboardCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "👥 ${group.passengerNamesSummary}",
+                    text = group.passengerNamesSummary,
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textBody,
                     fontWeight = FontWeight.Medium,

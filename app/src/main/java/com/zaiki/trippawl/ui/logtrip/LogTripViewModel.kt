@@ -55,6 +55,7 @@ data class LogTripFormState(
     val isRecurring: Boolean = false,
     val recurrenceIntervalInput: String = "1",
     val recurrenceUnit: RecurrenceUnit = RecurrenceUnit.WEEKS,
+    val recurrenceEndDate: Long? = null,
     val isDetailedTelemetryExpanded: Boolean = false,
     val statusMessage: String? = null,
     val isError: Boolean = false,
@@ -273,6 +274,7 @@ class LogTripViewModel @Inject constructor(
                     } else {
                         existing.recurrenceUnit
                     },
+                    recurrenceEndDate = existing.recurrenceEndDate,
                     isDetailedTelemetryExpanded = true
                 )
             }
@@ -623,6 +625,12 @@ class LogTripViewModel @Inject constructor(
         }
     }
 
+    fun onRecurrenceEndDateChange(endDate: Long?) {
+        formState.update {
+            it.copy(recurrenceEndDate = endDate, statusMessage = null, isError = false)
+        }
+    }
+
     fun onApplyRecurrencePreset(interval: Int, unit: RecurrenceUnit) {
         formState.update {
             it.copy(
@@ -705,12 +713,18 @@ class LogTripViewModel @Inject constructor(
             val isRecurring = current.form.isRecurring && current.form.recurrenceUnit != RecurrenceUnit.NONE
             val recurrenceInterval = (current.form.recurrenceIntervalInput.toIntOrNull() ?: 1).coerceIn(1, 365)
             val recurrenceUnit = if (isRecurring) current.form.recurrenceUnit else RecurrenceUnit.NONE
+            val recurrenceEndDate = if (isRecurring) current.form.recurrenceEndDate else null
             val nextOccurrenceDate = if (isRecurring) {
-                computeNextOccurrenceMillis(
+                val nextMillis = computeNextOccurrenceMillis(
                     fromMillis = tripDate,
                     interval = recurrenceInterval,
                     unit = recurrenceUnit
                 )
+                if (recurrenceEndDate != null && nextMillis != null && nextMillis > recurrenceEndDate) {
+                    null
+                } else {
+                    nextMillis
+                }
             } else {
                 null
             }
@@ -779,7 +793,8 @@ class LogTripViewModel @Inject constructor(
                         isRecurring = isRecurring,
                         recurrenceInterval = recurrenceInterval,
                         recurrenceUnit = recurrenceUnit,
-                        nextOccurrenceDate = nextOccurrenceDate
+                        nextOccurrenceDate = nextOccurrenceDate,
+                        recurrenceEndDate = recurrenceEndDate
                     )
                     if (existingRow != null) {
                         tripRepository.updateTrip(rowTrip)
@@ -816,7 +831,8 @@ class LogTripViewModel @Inject constructor(
                         isRecurring = isRecurring,
                         recurrenceInterval = recurrenceInterval,
                         recurrenceUnit = recurrenceUnit,
-                        nextOccurrenceDate = nextOccurrenceDate
+                        nextOccurrenceDate = nextOccurrenceDate,
+                        recurrenceEndDate = recurrenceEndDate
                     )
                     tripRepository.insertTrip(newTrip)
                 }

@@ -168,7 +168,7 @@ fun ZaikiSecondaryButton(
 }
 
 /**
- * Zaiki Compact Theme Toggle Button (`.themebutton` with 🌙 / ☀️)
+ * Zaiki Compact Theme Toggle Button (`.themebutton` with Dark / Light theme)
  */
 @Composable
 fun ZaikiThemeToggleButton(
@@ -189,7 +189,7 @@ fun ZaikiThemeToggleButton(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = if (isDark) "🌙 Dark" else "☀️ Light",
+            text = if (isDark) "Dark" else "Light",
             style = MaterialTheme.typography.labelSmall,
             color = fg,
             fontWeight = FontWeight.ExtraBold
@@ -308,8 +308,8 @@ fun ZaikiPaymentStatusChip(
         )
         Text(
             text = when {
-                isWaived -> "WAIVED 🎁"
-                isPaid -> "PAID ✓"
+                isWaived -> "WAIVED"
+                isPaid -> "PAID"
                 showQuickActionHint -> "PAY NOW"
                 else -> "UNPAID"
             },

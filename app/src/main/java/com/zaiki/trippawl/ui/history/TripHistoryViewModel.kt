@@ -98,7 +98,7 @@ class TripHistoryViewModel @Inject constructor(
         viewModelScope.launch {
             val count = driveTrackingManager.sendUnpaidTripsNotificationAlert()
             statusBannerFlow.value = if (count > 0) {
-                "🔔 Driver reminder notification sent ($count unpaid trip(s) to collect)!"
+                "Driver reminder notification sent ($count unpaid trip(s) to collect)."
             } else {
                 "All payments have been collected!"
             }
@@ -109,7 +109,7 @@ class TripHistoryViewModel @Inject constructor(
         viewModelScope.launch {
             val sent = driveTrackingManager.sendUnpaidAlertForGroup(group)
             if (sent) {
-                statusBannerFlow.value = "🔔 Driver collection reminder sent for '${group.displayTitle}'!"
+                statusBannerFlow.value = "Driver collection reminder sent for '${group.displayTitle}'."
             }
             selectedGroupKeyFlow.value = null
         }

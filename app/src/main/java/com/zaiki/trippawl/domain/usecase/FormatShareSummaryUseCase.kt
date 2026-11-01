@@ -30,7 +30,7 @@ class FormatShareSummaryUseCase @Inject constructor() {
             "${unpaidTrips.size} $tripWord, Total: $currencySymbol $formattedTotal"
 
         if (unpaidTrips.isEmpty()) {
-            return "Hi ${rider.name}, your carpool balance is all settled! Total due: $currencySymbol 0.00 ✨"
+            return "Hi ${rider.name}, your carpool balance is all settled! Total due: $currencySymbol 0.00"
         }
 
         val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.US)
@@ -63,7 +63,7 @@ class FormatShareSummaryUseCase @Inject constructor() {
             appendLine("Trip Breakdown:")
             breakdownLines.forEach { appendLine(it) }
             appendLine()
-            append("Generated via TripPawl 🐾")
+            append("Generated via TripPawl")
         }
     }
 }

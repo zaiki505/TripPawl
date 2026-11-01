@@ -5,6 +5,15 @@ import android.app.TimePickerDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -528,7 +537,7 @@ private fun Step1DetailsCard(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "📅",
+                            text = "Date",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -551,7 +560,7 @@ private fun Step1DetailsCard(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             ZaikiFilterChip(
-                label = "🕒 ${timeFormat.format(currentTripDate)}",
+                label = timeFormat.format(currentTripDate),
                 selected = true,
                 onClick = {
                     val cal = Calendar.getInstance().apply {
@@ -604,8 +613,8 @@ private fun Step1DetailsCard(
             }
         }
 
-        // Repeats Section (Max 5 strip suggestions: One-off, Daily, Weekly, Biweekly, Monthly)
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        // Repeats Section: One-off vs Customizable Recurring Schedule (Every X Days/Weeks/Months/Years until X Date)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = "Repeats",
                 style = MaterialTheme.typography.titleSmall,
@@ -613,90 +622,35 @@ private fun Step1DetailsCard(
                 fontWeight = FontWeight.Bold
             )
 
-            val intervalVal = (uiState.form.recurrenceIntervalInput.toIntOrNull() ?: 1).coerceAtLeast(1)
-            val activeUnit = uiState.form.recurrenceUnit
             val isRecurring = uiState.form.isRecurring
 
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ZaikiFilterChip(
                     label = "One-off",
                     selected = !isRecurring,
                     onClick = { viewModel.onToggleRecurring(false) }
                 )
                 ZaikiFilterChip(
-                    label = "Daily",
-                    selected = isRecurring && intervalVal == 1 && activeUnit == RecurrenceUnit.DAYS,
-                    onClick = { viewModel.onApplyRecurrencePreset(1, RecurrenceUnit.DAYS) }
-                )
-                ZaikiFilterChip(
-                    label = "Weekly",
-                    selected = isRecurring && intervalVal == 1 && activeUnit == RecurrenceUnit.WEEKS,
-                    onClick = { viewModel.onApplyRecurrencePreset(1, RecurrenceUnit.WEEKS) }
-                )
-                ZaikiFilterChip(
-                    label = "Biweekly",
-                    selected = isRecurring && intervalVal == 2 && activeUnit == RecurrenceUnit.WEEKS,
-                    onClick = { viewModel.onApplyRecurrencePreset(2, RecurrenceUnit.WEEKS) }
-                )
-                ZaikiFilterChip(
-                    label = "Monthly",
-                    selected = isRecurring && intervalVal == 1 && activeUnit == RecurrenceUnit.MONTHS,
-                    onClick = { viewModel.onApplyRecurrencePreset(1, RecurrenceUnit.MONTHS) }
+                    label = "Repeats Schedule",
+                    selected = isRecurring,
+                    onClick = { viewModel.onToggleRecurring(true) }
                 )
             }
 
             if (isRecurring) {
                 Spacer(modifier = Modifier.height(4.dp))
-                ZaikiDetailPanel(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            StepperButton(
-                                symbol = "−",
-                                enabled = intervalVal > 1,
-                                onClick = { viewModel.onStepRecurrenceInterval(-1) }
-                            )
-                            Text(
-                                text = "Every $intervalVal",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = colors.highlight,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                            StepperButton(
-                                symbol = "+",
-                                enabled = intervalVal < 365,
-                                onClick = { viewModel.onStepRecurrenceInterval(1) }
-                            )
-                        }
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            listOf(
-                                RecurrenceUnit.DAYS,
-                                RecurrenceUnit.WEEKS,
-                                RecurrenceUnit.MONTHS,
-                                RecurrenceUnit.YEARS
-                            ).forEach { unit ->
-                                ZaikiFilterChip(
-                                    label = unit.label,
-                                    selected = activeUnit == unit,
-                                    onClick = { viewModel.onRecurrenceUnitChange(unit) }
-                                )
-                            }
-                        }
-                    }
-                }
+                CustomRepeatScheduleCard(
+                    intervalInput = uiState.form.recurrenceIntervalInput,
+                    unit = uiState.form.recurrenceUnit,
+                    endDateMillis = uiState.form.recurrenceEndDate,
+                    onIntervalChange = viewModel::onRecurrenceIntervalChange,
+                    onStepInterval = viewModel::onStepRecurrenceInterval,
+                    onUnitChange = viewModel::onRecurrenceUnitChange,
+                    onEndDateChange = viewModel::onRecurrenceEndDateChange
+                )
             } else {
                 Text(
-                    text = "A one-off trip. Pick a schedule above to repeat it automatically.",
+                    text = "A one-off trip. Select 'Repeats Schedule' to repeat every X days, weeks, months or years.",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textMuted
                 )
@@ -716,7 +670,7 @@ private fun Step1DetailsCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ZaikiFilterChip(
-                    label = "🚗 ${uiState.settings.vehicleName.uppercase()} (${uiState.settings.preferredFuelType})",
+                    label = "${uiState.settings.vehicleName.uppercase()} (${uiState.settings.preferredFuelType})",
                     selected = true,
                     onClick = {}
                 )
@@ -865,7 +819,7 @@ private fun Step2FuelCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "🛣 Add toll or parking fees (optional)",
+                    text = "Add toll or parking fees (optional)",
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.textBody,
                     fontWeight = FontWeight.Medium
@@ -943,7 +897,7 @@ private fun Step3SplitCard(
                     val isSelected = !uiState.form.isCreatingNewRider &&
                         (rider.id in uiState.form.selectedRiderIds)
                     ZaikiFilterChip(
-                        label = (if (isSelected) "✓ " else "") + rider.name,
+                        label = rider.name,
                         selected = isSelected,
                         onClick = { viewModel.selectExistingRider(rider) }
                     )
@@ -1156,7 +1110,7 @@ private fun Step3SplitCard(
                 modifier = Modifier.weight(1f)
             )
             PaymentToggleOption(
-                label = "Paid ✓",
+                label = "Paid",
                 selected = uiState.form.isPaid,
                 activeColor = colors.available,
                 onClick = { viewModel.onPaymentStatusToggle(true) },
@@ -1192,7 +1146,13 @@ private fun Step4ReviewCard(
     } else {
         val interval = (uiState.form.recurrenceIntervalInput.toIntOrNull() ?: 1).coerceAtLeast(1)
         val unitWord = if (interval == 1) uiState.form.recurrenceUnit.singular else uiState.form.recurrenceUnit.plural
-        "Every $interval $unitWord"
+        val repeatText = "Every $interval $unitWord"
+        if (uiState.form.recurrenceEndDate != null) {
+            val endStr = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(uiState.form.recurrenceEndDate!!))
+            "$repeatText until $endStr"
+        } else {
+            repeatText
+        }
     }
 
     val splitSummaryLabel = if (uiState.form.isCustomSplitOverride) {
@@ -1316,7 +1276,7 @@ private fun Step4ReviewCard(
             Spacer(modifier = Modifier.height(8.dp))
             ReviewKeyValueRow(
                 label = "Status",
-                value = if (uiState.form.isPaid) "Paid ✓" else "Unpaid"
+                value = if (uiState.form.isPaid) "Paid" else "Unpaid"
             )
         }
 
@@ -1351,7 +1311,7 @@ private fun Step4ReviewCard(
 
         if (isEditing) {
             ZaikiSecondaryButton(
-                text = "🗑 Delete Grouped Trip",
+                text = "Delete Grouped Trip",
                 onClick = { viewModel.deleteEditingTrip(onDeleted = onDeleted) },
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 11.dp)
@@ -1447,5 +1407,216 @@ private fun PaymentToggleOption(
             color = textColor,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+
+@Composable
+private fun CustomRepeatScheduleCard(
+    intervalInput: String,
+    unit: RecurrenceUnit,
+    endDateMillis: Long?,
+    onIntervalChange: (String) -> Unit,
+    onStepInterval: (Int) -> Unit,
+    onUnitChange: (RecurrenceUnit) -> Unit,
+    onEndDateChange: (Long?) -> Unit
+) {
+    val context = LocalContext.current
+    val colors = ZaikiThemeTokens.colors
+    var unitMenuExpanded by remember { mutableStateOf(false) }
+
+    val intervalVal = (intervalInput.toIntOrNull() ?: 1).coerceAtLeast(1)
+    val unitWord = if (intervalVal == 1) unit.singular else unit.plural
+
+    val endCal = Calendar.getInstance().apply {
+        if (endDateMillis != null) timeInMillis = endDateMillis
+    }
+    val datePickerDialog = remember(context, endDateMillis) {
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val cal = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                    set(Calendar.HOUR_OF_DAY, 23)
+                    set(Calendar.MINUTE, 59)
+                    set(Calendar.SECOND, 59)
+                }
+                onEndDateChange(cal.timeInMillis)
+            },
+            endCal.get(Calendar.YEAR),
+            endCal.get(Calendar.MONTH),
+            endCal.get(Calendar.DAY_OF_MONTH)
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0xFF13151A))
+            .border(1.dp, colors.borderHairline, RoundedCornerShape(18.dp))
+            .padding(vertical = 18.dp, horizontal = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // First Row: "Repeat every [ 1 ] [ month ▾ ]"
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Repeat every",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // [ 1 ] chip with subtle steppers
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF22252E))
+                        .border(1.dp, colors.borderHairline, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                ) {
+                    IconButton(
+                        onClick = { onStepInterval(-1) },
+                        enabled = intervalVal > 1,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Text(
+                            text = "−",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = if (intervalVal > 1) colors.textPrimary else colors.textMuted
+                        )
+                    }
+
+                    Text(
+                        text = "$intervalVal",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.highlight,
+                        modifier = Modifier.padding(horizontal = 6.dp)
+                    )
+
+                    IconButton(
+                        onClick = { onStepInterval(1) },
+                        enabled = intervalVal < 365,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Text(
+                            text = "+",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = if (intervalVal < 365) colors.textPrimary else colors.textMuted
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // [ month ▾ ] chip
+                Box {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF22252E))
+                            .border(1.dp, colors.borderHairline, RoundedCornerShape(12.dp))
+                            .clickable { unitMenuExpanded = true }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = unitWord,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Select unit",
+                            tint = colors.textMuted,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = unitMenuExpanded,
+                        onDismissRequest = { unitMenuExpanded = false }
+                    ) {
+                        listOf(
+                            RecurrenceUnit.DAYS,
+                            RecurrenceUnit.WEEKS,
+                            RecurrenceUnit.MONTHS,
+                            RecurrenceUnit.YEARS
+                        ).forEach { u ->
+                            DropdownMenuItem(
+                                text = { Text(if (intervalVal == 1) u.singular else u.plural) },
+                                onClick = {
+                                    onUnitChange(u)
+                                    unitMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Second Row: "Until Forever" or "Until Oct 24, 2026"
+            val untilText = if (endDateMillis != null) {
+                val formatted = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(endDateMillis))
+                "Until $formatted"
+            } else {
+                "Until Forever"
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable { datePickerDialog.show() }
+                ) {
+                    Text(
+                        text = untilText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (endDateMillis != null) colors.highlight else colors.textMuted
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(1.dp)
+                            .background(if (endDateMillis != null) colors.highlight else colors.borderHairline)
+                    )
+                }
+
+                if (endDateMillis != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = { onEndDateChange(null) },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Reset to Forever",
+                            tint = colors.textMuted,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+        }
     }
 }

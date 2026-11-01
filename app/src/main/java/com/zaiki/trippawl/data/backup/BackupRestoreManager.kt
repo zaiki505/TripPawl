@@ -637,7 +637,8 @@ class BackupRestoreManager @Inject constructor(
                 isRecurring = obj.optBoolean("isRecurring", false),
                 recurrenceInterval = obj.optInt("recurrenceInterval", 1).coerceAtLeast(1),
                 recurrenceUnit = obj.optString("recurrenceUnit", RecurrenceUnit.NONE.name),
-                nextOccurrenceDate = obj.optLongOrNull("nextOccurrenceDate")
+                nextOccurrenceDate = obj.optLongOrNull("nextOccurrenceDate"),
+                recurrenceEndDate = obj.optLongOrNull("recurrenceEndDate")
             )
             tripDao.insertTrip(entity)
             restoredTripsCount++
@@ -795,6 +796,7 @@ class BackupRestoreManager @Inject constructor(
                     put("recurrenceInterval", trip.recurrenceInterval)
                     put("recurrenceUnit", trip.recurrenceUnit.name)
                     put("nextOccurrenceDate", trip.nextOccurrenceDate ?: JSONObject.NULL)
+                    put("recurrenceEndDate", trip.recurrenceEndDate ?: JSONObject.NULL)
                 }
             )
         }

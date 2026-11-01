@@ -161,7 +161,7 @@ fun RiderSummaryScreen(
                     if (ridersWithDebt > 0) {
                         Spacer(modifier = Modifier.height(10.dp))
                         ZaikiSecondaryButton(
-                            text = "🔔 Driver Reminder: Payment Still to Collect",
+                            text = "Driver Reminder: Payment Still to Collect",
                             isAccentTinted = true,
                             onClick = viewModel::sendUnpaidAlertForAllRiders,
                             modifier = Modifier.fillMaxWidth(),
@@ -329,7 +329,7 @@ fun RiderSummaryScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             ZaikiPrimaryButton(
-                                text = "✓ Settle Balance",
+                                text = "Settle Balance",
                                 enabled = selectedSummary.unpaidTripCount > 0,
                                 onClick = { viewModel.settleAllBalanceForRider(selectedSummary.rider) },
                                 modifier = Modifier.weight(1f),
@@ -358,13 +358,13 @@ fun RiderSummaryScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             ZaikiSecondaryButton(
-                                text = "✎ Edit Rider",
+                                text = "Edit Rider",
                                 onClick = { viewModel.openEditRiderSheet(selectedSummary.rider) },
                                 modifier = Modifier.weight(1f),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
                             )
                             ZaikiSecondaryButton(
-                                text = "🗑 Delete Rider",
+                                text = "Delete Rider",
                                 onClick = { viewModel.requestDeleteRider(selectedSummary.rider) },
                                 modifier = Modifier.weight(1f),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
@@ -383,7 +383,7 @@ fun RiderSummaryScreen(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         ZaikiSecondaryButton(
-                            text = "📋 Copy Summary Text",
+                            text = "Copy Summary Text",
                             onClick = {
                                 copyToClipboard(context, uiState.formattedShareText)
                                 viewModel.notifyCopiedToClipboard(selectedSummary.rider.name)
@@ -496,7 +496,7 @@ fun RiderSummaryScreen(
                     ) {
                         if (isEditing && editorSheet.existingRider != null) {
                             ZaikiSecondaryButton(
-                                text = "🗑 Delete",
+                                text = "Delete",
                                 onClick = {
                                     val target = editorSheet.existingRider
                                     viewModel.dismissRiderEditorSheet()
@@ -649,7 +649,7 @@ private fun RiderSummaryCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 ZaikiTagPill(
-                    text = if (hasDebt) "OWES →" else "SETTLED ✓",
+                    text = if (hasDebt) "OWES →" else "SETTLED",
                     category = if (hasDebt) ZaikiTagCategory.CREATIVE else ZaikiTagCategory.PERSONAL
                 )
             }
@@ -675,12 +675,12 @@ private fun RiderSummaryCard(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RiderActionChip(
-                    label = "✎ Edit",
+                    label = "Edit",
                     color = colors.highlight,
                     onClick = onEditRider
                 )
                 RiderActionChip(
-                    label = "🗑 Delete",
+                    label = "Delete",
                     color = colors.unavailable,
                     onClick = onDeleteRider
                 )

@@ -31,7 +31,10 @@ object DatabaseModule {
             TripPawlDatabase.DATABASE_NAME
         )
             // Explicit migrations preserve user ledger data; destructive fallback only on downgrade.
-            .addMigrations(TripPawlDatabase.MIGRATION_4_5)
+            .addMigrations(
+                TripPawlDatabase.MIGRATION_4_5,
+                TripPawlDatabase.MIGRATION_5_6
+            )
             .fallbackToDestructiveMigrationFrom(1, 2, 3)
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()

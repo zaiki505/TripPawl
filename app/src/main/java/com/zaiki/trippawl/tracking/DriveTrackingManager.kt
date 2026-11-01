@@ -844,7 +844,7 @@ class DriveTrackingManager @Inject constructor(
 
                 val notification = NotificationCompat.Builder(appContext, CHANNEL_ID_DRIVE_ALERTS)
                     .setSmallIcon(android.R.drawable.ic_dialog_map)
-                    .setContentTitle("🏁 Trip Ended · $distText Driven")
+                    .setContentTitle("Trip Ended · $distText Driven")
                     .setContentText("Est. $shareText/pax ($paxCount pax · Total $totalText) · Tap to review & save")
                     .setStyle(
                         NotificationCompat.BigTextStyle().bigText(
@@ -882,13 +882,20 @@ class DriveTrackingManager @Inject constructor(
      * driver reminder notification (throttled to at most once every 6 hours so it is never spammy).
      */
     suspend fun checkAndPostAutomaticDriverCollectionReminder() {
+        val settings = settingsRepository.settingsFlow.first()
+        if (!settings.unpaidReminderEnabled) return
+
         val now = System.currentTimeMillis()
-        if (now - lastAutoReminderMillis < 6L * 60L * 60L * 1000L) return
+        val intervalMillis = settings.unpaidReminderInterval.millis
+        if (now - settings.lastUnpaidReminderTimestamp < intervalMillis) return
+
         val allTrips = tripRepository.observeAllTrips().first()
-        val hasUnpaid = allTrips.any { !it.isPaid }
+        val hasUnpaid = allTrips.any { !it.isPaid && !it.isWaived }
         if (hasUnpaid) {
-            lastAutoReminderMillis = now
-            sendUnpaidTripsNotificationAlert()
+            val count = sendUnpaidTripsNotificationAlert()
+            if (count > 0) {
+                settingsRepository.setLastUnpaidReminderTimestamp(now)
+            }
         }
     }
 
@@ -939,7 +946,7 @@ class DriveTrackingManager @Inject constructor(
 
             val notification = NotificationCompat.Builder(appContext, CHANNEL_ID_DRIVE_ALERTS)
                 .setSmallIcon(android.R.drawable.ic_popup_reminder)
-                .setContentTitle("💰 Payment Collection Reminder · $totalText")
+                .setContentTitle("Payment Collection Reminder · $totalText")
                 .setContentText(shortSummary)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(detailedLines))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -984,7 +991,7 @@ class DriveTrackingManager @Inject constructor(
 
             val notification = NotificationCompat.Builder(appContext, CHANNEL_ID_DRIVE_ALERTS)
                 .setSmallIcon(android.R.drawable.ic_popup_reminder)
-                .setContentTitle("💰 Collect $totalText · ${group.displayTitle}")
+                .setContentTitle("Collect $totalText · ${group.displayTitle}")
                 .setContentText("Reminder: Payment still to collect for ${group.displayTitle}")
                 .setStyle(
                     NotificationCompat.BigTextStyle().bigText(

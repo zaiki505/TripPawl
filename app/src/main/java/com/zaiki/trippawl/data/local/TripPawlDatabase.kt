@@ -20,7 +20,7 @@ import com.zaiki.trippawl.data.local.entity.TripEntity
         TripEntity::class,
         DriveLogEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class TripPawlDatabase : RoomDatabase() {
@@ -54,6 +54,15 @@ abstract class TripPawlDatabase : RoomDatabase() {
                     "CREATE INDEX IF NOT EXISTS `index_drive_logs_startTimeMillis` " +
                         "ON `drive_logs` (`startTimeMillis`)"
                 )
+            }
+        }
+
+        /**
+         * v5 -> v6 (non-destructive): adds `trips.recurrenceEndDate` for customizable recurring trip end dates.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `trips` ADD COLUMN `recurrenceEndDate` INTEGER DEFAULT NULL")
             }
         }
     }

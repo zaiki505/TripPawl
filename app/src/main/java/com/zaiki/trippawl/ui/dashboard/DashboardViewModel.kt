@@ -59,7 +59,7 @@ class DashboardViewModel @Inject constructor(
             driveTrackingManager.ensureSpeedThresholdMonitorRunning()
             val spawned = tripRepository.processDueRecurringTrips()
             if (spawned > 0) {
-                statusBannerFlow.value = "🔁 Auto-logged $spawned due recurring trip(s)!"
+                statusBannerFlow.value = "Auto-logged $spawned due recurring trip(s)."
             }
             driveTrackingManager.checkAndPostAutomaticDriverCollectionReminder()
         }
@@ -112,7 +112,7 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             val count = driveTrackingManager.sendUnpaidTripsNotificationAlert()
             statusBannerFlow.value = if (count > 0) {
-                "🔔 Driver reminder notification sent ($count unpaid trip(s) still to collect)!"
+                "Driver reminder notification sent ($count unpaid trip(s) still to collect)."
             } else {
                 "All payments have been collected!"
             }

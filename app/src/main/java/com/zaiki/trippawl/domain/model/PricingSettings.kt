@@ -20,6 +20,23 @@ enum class FuelEfficiencyUnit(val label: String, val suffix: String) {
 }
 
 /**
+ * Defines the interval for unpaid trip reminder alerts.
+ */
+enum class UnpaidReminderInterval(val days: Int, val label: String) {
+    DAYS_7(7, "7 Days"),
+    DAYS_14(14, "14 Days"),
+    DAYS_30(30, "30 Days"),
+    WEEKS_14(98, "14 Weeks");
+
+    val millis: Long get() = days.toLong() * 24L * 60L * 60L * 1000L
+
+    companion object {
+        fun fromDays(days: Int): UnpaidReminderInterval =
+            entries.firstOrNull { it.days == days } ?: DAYS_7
+    }
+}
+
+/**
  * User-configurable Vehicle & Fuel Telemetry, pricing, and auto-tracking preferences stored in DataStore.
  */
 data class PricingSettings(
@@ -39,7 +56,10 @@ data class PricingSettings(
     val triggerBluetoothAddresses: Set<String> = emptySet(),
     val triggerBluetoothNames: Set<String> = emptySet(),
     val autoDetectSpeedThresholdKmh: Double = DEFAULT_SPEED_THRESHOLD_KMH,
-    val isDarkTheme: Boolean = true
+    val isDarkTheme: Boolean = true,
+    val unpaidReminderEnabled: Boolean = true,
+    val unpaidReminderInterval: UnpaidReminderInterval = UnpaidReminderInterval.DAYS_7,
+    val lastUnpaidReminderTimestamp: Long = 0L
 ) {
     /**
      * Effective fuel cost rate per kilometer:

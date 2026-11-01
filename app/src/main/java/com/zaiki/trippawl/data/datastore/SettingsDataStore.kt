@@ -6,11 +6,14 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.zaiki.trippawl.domain.model.FuelEfficiencyUnit
 import com.zaiki.trippawl.domain.model.MaintenanceMarkupMode
 import com.zaiki.trippawl.domain.model.PricingSettings
+import com.zaiki.trippawl.domain.model.UnpaidReminderInterval
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -44,6 +47,9 @@ class SettingsDataStore @Inject constructor(
         val TRIGGER_BLUETOOTH_NAMES = stringSetPreferencesKey("trigger_bluetooth_names")
         val AUTO_DETECT_SPEED_THRESHOLD_KMH = doublePreferencesKey("auto_detect_speed_threshold_kmh")
         val IS_DARK_THEME = booleanPreferencesKey("is_dark_theme")
+        val UNPAID_REMINDER_ENABLED = booleanPreferencesKey("unpaid_reminder_enabled")
+        val UNPAID_REMINDER_INTERVAL_DAYS = intPreferencesKey("unpaid_reminder_interval_days")
+        val LAST_UNPAID_REMINDER_TIMESTAMP = longPreferencesKey("last_unpaid_reminder_timestamp")
     }
 
     val settingsFlow: Flow<PricingSettings> = dataStore.data
@@ -62,6 +68,9 @@ class SettingsDataStore @Inject constructor(
             val unitName = prefs[Keys.FUEL_EFFICIENCY_UNIT] ?: FuelEfficiencyUnit.KM_PER_LITER.name
             val efficiencyUnit = runCatching { FuelEfficiencyUnit.valueOf(unitName) }
                 .getOrDefault(FuelEfficiencyUnit.KM_PER_LITER)
+
+            val reminderDays = prefs[Keys.UNPAID_REMINDER_INTERVAL_DAYS] ?: 7
+            val reminderInterval = UnpaidReminderInterval.fromDays(reminderDays)
 
             PricingSettings(
                 currencySymbol = prefs[Keys.CURRENCY_SYMBOL]?.ifBlank { PricingSettings.DEFAULT_CURRENCY_SYMBOL }
@@ -90,7 +99,10 @@ class SettingsDataStore @Inject constructor(
                 triggerBluetoothNames = prefs[Keys.TRIGGER_BLUETOOTH_NAMES] ?: emptySet(),
                 autoDetectSpeedThresholdKmh = prefs[Keys.AUTO_DETECT_SPEED_THRESHOLD_KMH]
                     ?: PricingSettings.DEFAULT_SPEED_THRESHOLD_KMH,
-                isDarkTheme = prefs[Keys.IS_DARK_THEME] ?: true
+                isDarkTheme = prefs[Keys.IS_DARK_THEME] ?: true,
+                unpaidReminderEnabled = prefs[Keys.UNPAID_REMINDER_ENABLED] ?: true,
+                unpaidReminderInterval = reminderInterval,
+                lastUnpaidReminderTimestamp = prefs[Keys.LAST_UNPAID_REMINDER_TIMESTAMP] ?: 0L
             )
         }
 
@@ -119,6 +131,14 @@ class SettingsDataStore @Inject constructor(
             prefs[Keys.TRIGGER_BLUETOOTH_NAMES] = settings.triggerBluetoothNames
             prefs[Keys.AUTO_DETECT_SPEED_THRESHOLD_KMH] = settings.autoDetectSpeedThresholdKmh.coerceAtLeast(5.0)
             prefs[Keys.IS_DARK_THEME] = settings.isDarkTheme
+            prefs[Keys.UNPAID_REMINDER_ENABLED] = settings.unpaidReminderEnabled
+            prefs[Keys.UNPAID_REMINDER_INTERVAL_DAYS] = settings.unpaidReminderInterval.days
+        }
+    }
+
+    suspend fun setLastUnpaidReminderTimestamp(timestamp: Long) {
+        dataStore.edit { prefs ->
+            prefs[Keys.LAST_UNPAID_REMINDER_TIMESTAMP] = timestamp
         }
     }
 

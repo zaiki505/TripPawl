@@ -16,6 +16,8 @@ import com.zaiki.trippawl.data.update.AppUpdateManager
 import com.zaiki.trippawl.domain.model.FuelEfficiencyUnit
 import com.zaiki.trippawl.domain.model.MaintenanceMarkupMode
 import com.zaiki.trippawl.domain.model.PricingSettings
+import com.zaiki.trippawl.domain.model.UnpaidReminderInterval
+import com.zaiki.trippawl.tracking.DriveTrackingManager
 import com.zaiki.trippawl.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -56,6 +58,8 @@ data class SettingsFormUiState(
     val bluetoothScanStatus: String? = null,
     val speedThresholdInput: String = PricingSettings.DEFAULT_SPEED_THRESHOLD_KMH.toString(),
     val isDarkTheme: Boolean = true,
+    val unpaidReminderEnabled: Boolean = true,
+    val unpaidReminderInterval: UnpaidReminderInterval = UnpaidReminderInterval.DAYS_7,
     val isInitializedFromStore: Boolean = false,
     val statusMessage: String? = null,
     val isError: Boolean = false,
@@ -106,7 +110,8 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val settingsRepository: SettingsRepository,
     private val backupRestoreManager: BackupRestoreManager,
-    private val appUpdateManager: AppUpdateManager
+    private val appUpdateManager: AppUpdateManager,
+    private val driveTrackingManager: DriveTrackingManager
 ) : ViewModel() {
 
     private val localEdits = MutableStateFlow(SettingsFormUiState())
@@ -239,7 +244,7 @@ class SettingsViewModel @Inject constructor(
                             isBackupBusy = false,
                             localBackupFiles = files,
                             lastLocalBackupMillis = cfg.lastLocalBackupMillis,
-                            backupStatusMessage = "✓ Saved local snapshot '${created.fileName}' (${created.ridersCount} riders, ${created.tripsCount} trips)!",
+                            backupStatusMessage = "Saved local snapshot '${created.fileName}' (${created.ridersCount} riders, ${created.tripsCount} trips)!",
                             isBackupStatusError = false
                         )
                     }
@@ -265,7 +270,7 @@ class SettingsViewModel @Inject constructor(
             result.fold(
                 onSuccess = { summary ->
                     reloadFormFromPersistedSettings(
-                        backupBanner = "✓ Restored ${summary.ridersCount} rider(s) & ${summary.tripsCount} trip(s) from '${file.fileName}' (${mode.label})!",
+                        backupBanner = "Restored ${summary.ridersCount} rider(s) & ${summary.tripsCount} trip(s) from '${file.fileName}' (${mode.label})!",
                         isError = false
                     )
                 },
@@ -310,7 +315,7 @@ class SettingsViewModel @Inject constructor(
                             localBackupFiles = files,
                             lastLocalBackupMillis = cfg.lastLocalBackupMillis,
                             lastGoogleDriveBackupMillis = cfg.lastGoogleDriveBackupMillis,
-                            backupStatusMessage = "✓ Backed up ${summary.ridersCount} rider(s) & ${summary.tripsCount} trip(s) to ${summary.sourceLabel}!",
+                            backupStatusMessage = "Backed up ${summary.ridersCount} rider(s) & ${summary.tripsCount} trip(s) to ${summary.sourceLabel}!",
                             isBackupStatusError = false
                         )
                     }
@@ -336,7 +341,7 @@ class SettingsViewModel @Inject constructor(
             result.fold(
                 onSuccess = { summary ->
                     reloadFormFromPersistedSettings(
-                        backupBanner = "✓ Restored ${summary.ridersCount} rider(s) & ${summary.tripsCount} trip(s) from ${summary.sourceLabel} (${mode.label})!",
+                        backupBanner = "Restored ${summary.ridersCount} rider(s) & ${summary.tripsCount} trip(s) from ${summary.sourceLabel} (${mode.label})!",
                         isError = false
                     )
                 },
@@ -365,7 +370,7 @@ class SettingsViewModel @Inject constructor(
                         it.copy(
                             isBackupBusy = false,
                             lastGoogleDriveBackupMillis = cfg.lastGoogleDriveBackupMillis,
-                            backupStatusMessage = "☁️ Synced ${summary.ridersCount} rider(s) & ${summary.tripsCount} trip(s) to Google Drive Cloud!",
+                            backupStatusMessage = "Synced ${summary.ridersCount} rider(s) & ${summary.tripsCount} trip(s) to Google Drive Cloud!",
                             isBackupStatusError = false
                         )
                     }
@@ -392,7 +397,7 @@ class SettingsViewModel @Inject constructor(
             result.fold(
                 onSuccess = { summary ->
                     reloadFormFromPersistedSettings(
-                        backupBanner = "☁️ Restored ${summary.ridersCount} rider(s) & ${summary.tripsCount} trip(s) from Google Drive Cloud (${mode.label})!",
+                        backupBanner = "Restored ${summary.ridersCount} rider(s) & ${summary.tripsCount} trip(s) from Google Drive Cloud (${mode.label})!",
                         isError = false
                     )
                 },
@@ -676,8 +681,35 @@ class SettingsViewModel @Inject constructor(
             triggerBluetoothAddresses = current.triggerBluetoothAddresses,
             triggerBluetoothNames = current.triggerBluetoothNames,
             autoDetectSpeedThresholdKmh = speedThreshold.coerceAtLeast(5.0),
-            isDarkTheme = current.isDarkTheme
+            isDarkTheme = current.isDarkTheme,
+            unpaidReminderEnabled = current.unpaidReminderEnabled,
+            unpaidReminderInterval = current.unpaidReminderInterval
         )
+    }
+
+
+    fun onUnpaidReminderEnabledChange(enabled: Boolean) {
+        localEdits.update { it.copy(unpaidReminderEnabled = enabled, statusMessage = null) }
+    }
+
+    fun onUnpaidReminderIntervalChange(interval: UnpaidReminderInterval) {
+        localEdits.update { it.copy(unpaidReminderInterval = interval, statusMessage = null) }
+    }
+
+    fun onTestUnpaidReminderAlert() {
+        viewModelScope.launch {
+            val count = driveTrackingManager.sendUnpaidTripsNotificationAlert()
+            localEdits.update {
+                it.copy(
+                    statusMessage = if (count > 0) {
+                        "Test reminder sent for $count unpaid trip group(s)."
+                    } else {
+                        "No unpaid trips to remind about (all trips settled)."
+                    },
+                    isError = false
+                )
+            }
+        }
     }
 
     fun saveSettings() {
@@ -697,7 +729,7 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.updateSettings(newSettings)
             localEdits.update {
                 it.copy(
-                    statusMessage = "Vehicle telemetry & pricing rules saved! ✨",
+                    statusMessage = "Vehicle telemetry & pricing rules saved.",
                     isError = false
                 )
             }
@@ -747,6 +779,8 @@ class SettingsViewModel @Inject constructor(
             bluetoothScanStatus = scanStatus,
             speedThresholdInput = autoDetectSpeedThresholdKmh.toString(),
             isDarkTheme = isDarkTheme,
+            unpaidReminderEnabled = unpaidReminderEnabled,
+            unpaidReminderInterval = unpaidReminderInterval,
             isInitializedFromStore = true
         )
     }
@@ -764,9 +798,9 @@ class SettingsViewModel @Inject constructor(
             appUpdateManager.checkForUpdates().fold(
                 onSuccess = { info ->
                     val msg = if (info.isUpdateAvailable) {
-                        "🎉 New version v${info.latestVersion} available!"
+                        "New version v${info.latestVersion} available!"
                     } else {
-                        "✓ You have the latest version (v${info.currentVersion})"
+                        "You have the latest version (v${info.currentVersion})"
                     }
                     localEdits.update { it.copy(isCheckingForUpdate = false, updateInfo = info, updateCheckMessage = msg) }
                 },

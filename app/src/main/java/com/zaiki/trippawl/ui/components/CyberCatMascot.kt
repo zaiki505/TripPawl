@@ -149,15 +149,15 @@ fun CyberCatMascot(
     }
 
     val statusHint = when (mood) {
-        CyberCatMood.FLEE -> "Zooming off to avoid toll booths! 🐾💨"
-        CyberCatMood.HAPPY -> "Purr-fect carpool ledger! ✨"
-        CyberCatMood.ANGRY -> "Hey! Pay your fuel share first! 😾"
+        CyberCatMood.FLEE -> "Zooming off to avoid toll booths!"
+        CyberCatMood.HAPPY -> "Purr-fect carpool ledger!"
+        CyberCatMood.ANGRY -> "Hey! Pay your fuel share first!"
         CyberCatMood.ANNOYED -> "Stop poking the co-pilot..."
-        CyberCatMood.REACT -> "Did fuel prices change?! 💧"
+        CyberCatMood.REACT -> "Did fuel prices change?!"
         CyberCatMood.NEUTRAL -> if (unpaidTripCount > 0) {
             "Pawl says: $unpaidTripCount unpaid trip(s) waiting · tap me!"
         } else {
-            "Pawl says: All riders settled up! Meow! 🐾"
+            "Pawl says: All riders settled up! Meow!"
         }
     }
 

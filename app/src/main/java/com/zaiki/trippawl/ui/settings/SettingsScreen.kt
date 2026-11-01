@@ -62,6 +62,7 @@ import com.zaiki.trippawl.data.backup.LocalBackupFileUi
 import com.zaiki.trippawl.data.backup.RestoreMode
 import com.zaiki.trippawl.domain.model.FuelEfficiencyUnit
 import com.zaiki.trippawl.domain.model.MaintenanceMarkupMode
+import com.zaiki.trippawl.domain.model.UnpaidReminderInterval
 import com.zaiki.trippawl.ui.components.ZaikiBackToTopButton
 import com.zaiki.trippawl.ui.components.ZaikiBentoCard
 import com.zaiki.trippawl.ui.components.ZaikiDetailPanel
@@ -553,7 +554,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         ZaikiSecondaryButton(
-                            text = "📱 Choose Bluetooth Devices →",
+                            text = "Choose Bluetooth Devices →",
                             isAccentTinted = true,
                             onClick = {
                                 scanPairedBluetoothDevices()
@@ -579,7 +580,97 @@ fun SettingsScreen(
             }
         }
 
-        // 4. Simplified Data Backup & Restore (Auto Backup + Local + Google Drive)
+        // 4. Unpaid Trip Notification Alerts (Every 7 days / 14 days / 30 days / 14 weeks)
+        item {
+            ZaikiBentoCard(isMainAccent = false) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "4. UNPAID TRIP NOTIFICATIONS",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = colors.highlight
+                        )
+                        Text(
+                            text = "Automatic reminder schedule for uncollected carpool fares",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textMuted
+                        )
+                    }
+                    ZaikiTagPill(
+                        text = if (uiState.unpaidReminderEnabled) uiState.unpaidReminderInterval.label.uppercase() else "OFF",
+                        category = if (uiState.unpaidReminderEnabled) ZaikiTagCategory.PERSONAL else ZaikiTagCategory.CREATIVE
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Automatic Reminder Alert",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Send polite notification alert when any trips remain unpaid",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textMuted
+                        )
+                    }
+                    Switch(
+                        checked = uiState.unpaidReminderEnabled,
+                        onCheckedChange = viewModel::onUnpaidReminderEnabledChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = colors.highlight,
+                            checkedTrackColor = colors.accentWash
+                        )
+                    )
+                }
+
+                if (uiState.unpaidReminderEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Alert Frequency",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textMuted,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        UnpaidReminderInterval.entries.forEach { interval ->
+                            ZaikiFilterChip(
+                                label = interval.label,
+                                selected = uiState.unpaidReminderInterval == interval,
+                                onClick = { viewModel.onUnpaidReminderIntervalChange(interval) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ZaikiSecondaryButton(
+                        text = "Test Reminder Notification",
+                        isAccentTinted = true,
+                        onClick = viewModel::onTestUnpaidReminderAlert,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                    )
+                }
+            }
+        }
+
+        // 5. Simplified Data Backup & Restore (Auto Backup + Local + Google Drive)
         item {
             ZaikiBentoCard(isMainAccent = true) {
                 Row(
@@ -589,7 +680,7 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "4. BACKUP & RESTORE",
+                            text = "5. BACKUP & RESTORE",
                             style = MaterialTheme.typography.labelMedium,
                             color = colors.highlight
                         )
@@ -666,14 +757,14 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     ZaikiPrimaryButton(
-                        text = if (uiState.isBackupBusy) "Saving..." else "💾 Backup Now",
+                        text = if (uiState.isBackupBusy) "Saving..." else "Backup Now",
                         enabled = !uiState.isBackupBusy,
                         onClick = viewModel::createLocalSnapshotNow,
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
                     )
                     ZaikiSecondaryButton(
-                        text = "🗂 Restore / Files (${uiState.localBackupFiles.size})",
+                        text = "Restore / Files (${uiState.localBackupFiles.size})",
                         isAccentTinted = true,
                         onClick = {
                             viewModel.refreshLocalBackups()
@@ -696,7 +787,7 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "☁️ Google Drive Backup",
+                            text = "Google Drive Backup",
                             style = MaterialTheme.typography.titleSmall,
                             color = colors.textPrimary,
                             fontWeight = FontWeight.Bold
@@ -728,7 +819,7 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         ZaikiPrimaryButton(
-                            text = "☁️ Save to Drive",
+                            text = "Save to Drive",
                             enabled = !uiState.isBackupBusy,
                             onClick = {
                                 val driveFileName = "trippawl_gdrive_backup_${fileStampFormat.format(Date())}.json"
@@ -738,7 +829,7 @@ fun SettingsScreen(
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)
                         )
                         ZaikiSecondaryButton(
-                            text = "☁️ Restore Drive",
+                            text = "Restore Drive",
                             enabled = !uiState.isBackupBusy,
                             isAccentTinted = true,
                             onClick = {
@@ -813,7 +904,7 @@ fun SettingsScreen(
                             .padding(12.dp)
                     ) {
                         Text(
-                            text = "🎉 New Release Available: ${update.releaseTitle}",
+                            text = "New Release Available: ${update.releaseTitle}",
                             style = MaterialTheme.typography.titleSmall,
                             color = colors.available,
                             fontWeight = FontWeight.Bold
@@ -1081,7 +1172,7 @@ private fun LocalBackupVaultPopup(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = if (file.isAutoBackup) "⚡ Auto-Backup Snapshot" else file.fileName,
+                                        text = if (file.isAutoBackup) "Auto-Backup Snapshot" else file.fileName,
                                         style = MaterialTheme.typography.titleSmall,
                                         color = colors.textPrimary,
                                         fontWeight = FontWeight.Bold,
@@ -1112,7 +1203,7 @@ private fun LocalBackupVaultPopup(
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)
                                     )
                                     ZaikiSecondaryButton(
-                                        text = "🗑 Delete",
+                                        text = "Delete",
                                         onClick = { onDeleteSnapshot(file) },
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
                                     )
@@ -1136,7 +1227,7 @@ private fun LocalBackupVaultPopup(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 11.dp)
                     )
                     ZaikiPrimaryButton(
-                        text = "Done ✓",
+                        text = "Done",
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 11.dp)
@@ -1247,7 +1338,7 @@ private fun BluetoothDevicesPickerPopup(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     ZaikiSecondaryButton(
-                        text = "🔍 Scan Paired Devices",
+                        text = "Scan Paired Devices",
                         isAccentTinted = true,
                         onClick = onScanPaired,
                         modifier = Modifier.weight(1f),
@@ -1355,7 +1446,7 @@ private fun BluetoothDevicesPickerPopup(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 ZaikiPrimaryButton(
-                    text = "Done ✓",
+                    text = "Done",
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1428,7 +1519,7 @@ private fun BluetoothDeviceCheckboxRow(
         ) {
             if (selected) {
                 Text(
-                    text = "✓",
+                    text = "OK",
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White,
                     fontWeight = FontWeight.ExtraBold
