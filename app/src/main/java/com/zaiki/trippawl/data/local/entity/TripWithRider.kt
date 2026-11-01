@@ -59,12 +59,16 @@ data class TripWithRider(
 data class RiderDebtSummaryTuple(
     @Embedded
     val rider: RiderEntity,
-    val tripCount: Int,
-    val totalDebt: Double
+    val unpaidBalance: Double,
+    val unpaidTripCount: Int,
+    val settledAmount: Double,
+    val totalTripsCount: Int
 ) {
     fun toDomainModel(): RiderDebtSummary = RiderDebtSummary(
         rider = rider.toDomainModel(),
-        unpaidTripCount = tripCount,
-        totalUnpaidAmount = totalDebt
+        unpaidBalance = unpaidBalance,
+        unpaidTripCount = unpaidTripCount,
+        settledAmount = settledAmount,
+        totalTripsCount = totalTripsCount
     )
 }
