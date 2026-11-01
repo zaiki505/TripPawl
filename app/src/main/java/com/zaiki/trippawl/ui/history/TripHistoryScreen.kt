@@ -119,7 +119,7 @@ fun TripHistoryScreen(
                         label = "",
                         value = uiState.searchQuery,
                         onValueChange = viewModel::onSearchQueryChange,
-                        placeholder = "Search by trip name or passenger...",
+                        placeholder = "Search by trip name or pax...",
                         suffix = if (uiState.searchQuery.isNotEmpty()) "ACTIVE" else "🔍"
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -253,9 +253,10 @@ fun TripHistoryScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Passengers: ${selectedGroup.passengerNamesSummary}\n" +
+                        text = "Pax: ${selectedGroup.passengerNamesSummary}\n" +
                             "Total: ${formatMoney(currency, selectedGroup.totalPassengersFare)} " +
                             "(${formatMoney(currency, selectedGroup.sharePerPerson)} / pax)" +
+                            (if (selectedGroup.waivedCount > 0) "\nWaived: 🎁 ${selectedGroup.waivedCount} share(s) (${formatMoney(currency, selectedGroup.waivedTotalFare)})" else "") +
                             (selectedGroup.recurrenceSummaryLabel?.let { "\nRecurrence: 🔁 $it" } ?: ""),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textBody
@@ -287,6 +288,58 @@ fun TripHistoryScreen(
                         isAccentTinted = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    ZaikiSecondaryButton(
+                        text = if (selectedGroup.isAllWaived) "🎁 Revert Waived Fares to Unpaid" else "🎁 Waive All Fares (Free Ride)",
+                        onClick = {
+                            viewModel.toggleGroupWaived(selectedGroup)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (selectedGroup.passengerShares.size > 1) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "INDIVIDUAL PAX WAIVER & STATUS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.highlight
+                        )
+                        selectedGroup.passengerShares.forEach { share ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(ZaikiRadii.InputField)
+                                    .background(colors.surfaceChip)
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = share.riderName,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = colors.textPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = formatMoney(currency, share.calculatedFare),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = colors.textMuted
+                                    )
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    ZaikiTagPill(
+                                        text = if (share.isWaived) "WAIVED 🎁" else "Waive",
+                                        category = if (share.isWaived) ZaikiTagCategory.PERSONAL else ZaikiTagCategory.SYSTEM,
+                                        onClick = { viewModel.toggleSinglePassengerWaived(share) }
+                                    )
+                                    ZaikiTagPill(
+                                        text = if (share.isPaid) "PAID ✓" else "Unpaid",
+                                        category = if (share.isPaid) ZaikiTagCategory.WEB else ZaikiTagCategory.SYSTEM,
+                                        onClick = { viewModel.toggleSinglePassengerPaid(share) }
+                                    )
+                                }
+                            }
+                        }
+                    }
                     ZaikiSecondaryButton(
                         text = "🗑 Delete Grouped Trip",
                         onClick = { viewModel.deleteGroup(selectedGroup) },
@@ -351,7 +404,7 @@ internal fun GroupedTripLedgerDetailCard(
                             modifier = Modifier.weight(1f, fill = false)
                         )
                         ZaikiTagPill(
-                            text = "${group.passengerCount} Passengers",
+                            text = "${group.passengerCount} Pax",
                             category = ZaikiTagCategory.PERSONAL
                         )
                         ZaikiTagPill(
@@ -407,6 +460,7 @@ internal fun GroupedTripLedgerDetailCard(
 
                 ZaikiPaymentStatusChip(
                     isPaid = group.isAllPaid,
+                    isWaived = group.isAllWaived,
                     onClick = onToggleGroupPaid
                 )
             }
@@ -419,7 +473,16 @@ internal fun GroupedTripLedgerDetailCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     group.passengerShares.forEach { share ->
-                        val chipColor = if (share.isPaid) colors.available else colors.unavailable
+                        val chipColor = when {
+                            share.isWaived -> colors.highlight
+                            share.isPaid -> colors.available
+                            else -> colors.unavailable
+                        }
+                        val symbol = when {
+                            share.isWaived -> "🎁"
+                            share.isPaid -> "✓"
+                            else -> "●"
+                        }
                         Box(
                             modifier = Modifier
                                 .zaikiSquishClickable { onToggleSinglePassengerPaid(share) }
@@ -429,7 +492,7 @@ internal fun GroupedTripLedgerDetailCard(
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "${if (share.isPaid) "✓" else "●"} ${share.riderName} (${formatMoney(currencySymbol, share.calculatedFare)})",
+                                text = "$symbol ${share.riderName} (${formatMoney(currencySymbol, share.calculatedFare)})",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = chipColor,
                                 fontWeight = FontWeight.Bold
@@ -484,7 +547,7 @@ internal fun GroupedTripLedgerDetailCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${group.passengerCount} passenger(s) · ${formatMoney(currencySymbol, group.sharePerPerson)} each",
+                    text = "${group.passengerCount} pax · ${formatMoney(currencySymbol, group.sharePerPerson)} each",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textMuted,
                     maxLines = 1,

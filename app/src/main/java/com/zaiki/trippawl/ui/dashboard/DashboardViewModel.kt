@@ -2,6 +2,8 @@ package com.zaiki.trippawl.ui.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zaiki.trippawl.data.local.dao.DriveLogDao
+import com.zaiki.trippawl.data.local.entity.DriveLogEntity
 import com.zaiki.trippawl.domain.model.DashboardMetrics
 import com.zaiki.trippawl.domain.model.FareCalculationResult
 import com.zaiki.trippawl.domain.model.GroupedTrip
@@ -30,6 +32,7 @@ data class DashboardUiState(
     val recentTrips: List<Trip> = emptyList(),
     val recentGroupedTrips: List<GroupedTrip> = emptyList(),
     val recentTripNames: List<String> = emptyList(),
+    val recentDriveLogs: List<DriveLogEntity> = emptyList(),
     val savedRiders: List<Rider> = emptyList(),
     val settings: PricingSettings = PricingSettings(),
     val driveState: DriveTrackingState = DriveTrackingState(),
@@ -44,7 +47,8 @@ class DashboardViewModel @Inject constructor(
     private val riderRepository: RiderRepository,
     private val settingsRepository: SettingsRepository,
     private val calculateTripFareUseCase: CalculateTripFareUseCase,
-    private val driveTrackingManager: DriveTrackingManager
+    private val driveTrackingManager: DriveTrackingManager,
+    private val driveLogDao: DriveLogDao
 ) : ViewModel() {
 
     private val monthBounds: Pair<Long, Long> = computeCurrentMonthBounds()
@@ -94,6 +98,8 @@ class DashboardViewModel @Inject constructor(
             liveDriveFare = liveFare,
             isLoading = false
         )
+    }.combine(driveLogDao.observeRecentLogs(limit = 10)) { base, logs ->
+        base.copy(recentDriveLogs = logs)
     }.combine(statusBannerFlow) { base, banner ->
         base.copy(statusBannerMessage = banner)
     }.stateIn(
@@ -200,6 +206,44 @@ class DashboardViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Quick action to waive or un-waive a single passenger share.
+     */
+    fun toggleSinglePassengerWaived(share: Trip) {
+        viewModelScope.launch {
+            tripRepository.setTripWaived(share.id, !share.isWaived)
+        }
+    }
+
+    /**
+     * Quick action to waive or un-waive an entire grouped trip.
+     */
+    fun toggleGroupedTripWaived(group: GroupedTrip) {
+        viewModelScope.launch {
+            val targetWaived = !group.isAllWaived
+            val firstGroupId = group.passengerShares.firstOrNull()?.tripGroupId.orEmpty()
+            if (firstGroupId.isNotBlank()) {
+                tripRepository.setGroupWaived(firstGroupId, targetWaived)
+            } else {
+                group.passengerShares.forEach { share ->
+                    tripRepository.setTripWaived(share.id, targetWaived)
+                }
+            }
+        }
+    }
+
+    fun reopenDriveLog(log: DriveLogEntity) {
+        driveTrackingManager.reopenDriveLog(log)
+    }
+
+    fun deleteDriveLog(logId: Long) {
+        driveTrackingManager.deleteDriveLog(logId)
+    }
+
+    fun clearAllDriveLogs() {
+        driveTrackingManager.clearAllDriveLogs()
     }
 
     fun toggleTheme() {

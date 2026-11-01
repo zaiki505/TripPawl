@@ -20,6 +20,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.zaiki.trippawl.MainActivity
 import com.zaiki.trippawl.data.backup.BackupRestoreManager
+import com.zaiki.trippawl.data.local.dao.DriveLogDao
+import com.zaiki.trippawl.data.local.entity.DriveLogEntity
+import com.zaiki.trippawl.data.local.entity.DriveLogStatus
 import com.zaiki.trippawl.domain.model.GroupedTrip
 import com.zaiki.trippawl.domain.model.PricingSettings
 import com.zaiki.trippawl.domain.model.Rider
@@ -59,7 +62,8 @@ data class CompletedDriveSummary(
     val distanceDrivenKm: Double,
     val gpsPointsCount: Int,
     val selectedPassengerIds: Set<Long>,
-    val triggerSource: String
+    val triggerSource: String,
+    val logId: Long = 0L
 )
 
 data class DriveTrackingState(
@@ -93,7 +97,8 @@ class DriveTrackingManager @Inject constructor(
     private val tripRepository: TripRepository,
     private val settingsRepository: SettingsRepository,
     private val calculateTripFareUseCase: CalculateTripFareUseCase,
-    private val backupRestoreManager: BackupRestoreManager
+    private val backupRestoreManager: BackupRestoreManager,
+    private val driveLogDao: DriveLogDao
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var timerJob: Job? = null
@@ -636,7 +641,8 @@ class DriveTrackingManager @Inject constructor(
             distanceDrivenKm = effectiveDistance,
             gpsPointsCount = current.gpsPointsCount,
             selectedPassengerIds = current.selectedPassengerIds,
-            triggerSource = current.triggerSource
+            triggerSource = current.triggerSource,
+            logId = 0L
         )
 
         _state.value = DriveTrackingState(
@@ -648,6 +654,29 @@ class DriveTrackingManager @Inject constructor(
             completedDriveSummary = summary
         )
 
+        // Persist GPS drive log to database so driver can review/re-log from Dashboard at any time
+        val logEntity = DriveLogEntity(
+            startTimeMillis = current.startTimeMillis,
+            endTimeMillis = lastDriveStopTimeMillis,
+            distanceKm = effectiveDistance,
+            gpsPointsCount = current.gpsPointsCount,
+            triggerSource = current.triggerSource,
+            passengerIdsCsv = current.selectedPassengerIds.joinToString(","),
+            status = DriveLogStatus.PENDING.name,
+            savedTripGroupId = ""
+        )
+        scope.launch {
+            val insertedLogId = driveLogDao.insertLog(logEntity)
+            _state.update { state ->
+                val activeSummary = state.completedDriveSummary
+                if (activeSummary != null && activeSummary.startTimeMillis == current.startTimeMillis) {
+                    state.copy(completedDriveSummary = activeSummary.copy(logId = insertedLogId))
+                } else {
+                    state
+                }
+            }
+        }
+
         // Post trip-ended system notification with distance and estimated split
         postTripCompletedNotification(summary)
 
@@ -656,8 +685,42 @@ class DriveTrackingManager @Inject constructor(
     }
 
     fun dismissCompletedDriveSummary() {
+        val currentSummary = _state.value.completedDriveSummary
+        if (currentSummary != null && currentSummary.logId != 0L) {
+            scope.launch {
+                driveLogDao.updateLogStatus(currentSummary.logId, DriveLogStatus.DISCARDED.name, "")
+            }
+        }
         cancelCompletedDriveNotification()
         _state.update { it.copy(completedDriveSummary = null) }
+    }
+
+    /**
+     * Reopens a previously recorded drive log for review and saving.
+     */
+    fun reopenDriveLog(log: DriveLogEntity) {
+        val summary = CompletedDriveSummary(
+            startTimeMillis = log.startTimeMillis,
+            arrivalTimeMillis = log.endTimeMillis,
+            distanceDrivenKm = log.distanceKm,
+            gpsPointsCount = log.gpsPointsCount,
+            selectedPassengerIds = log.passengerIds,
+            triggerSource = log.triggerSource,
+            logId = log.id
+        )
+        _state.update { it.copy(completedDriveSummary = summary) }
+    }
+
+    fun deleteDriveLog(logId: Long) {
+        scope.launch {
+            driveLogDao.deleteLog(logId)
+        }
+    }
+
+    fun clearAllDriveLogs() {
+        scope.launch {
+            driveLogDao.deleteAllLogs()
+        }
     }
 
     /**
@@ -721,6 +784,10 @@ class DriveTrackingManager @Inject constructor(
                     isAutoTracked = true
                 )
                 tripRepository.insertTrip(trip)
+            }
+
+            if (summary.logId != 0L) {
+                driveLogDao.updateLogStatus(summary.logId, DriveLogStatus.SAVED.name, sharedGroupId)
             }
 
             backupRestoreManager.triggerAutoBackupIfEnabled()

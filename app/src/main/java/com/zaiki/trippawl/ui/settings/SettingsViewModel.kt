@@ -11,6 +11,8 @@ import com.zaiki.trippawl.data.backup.AutoBackupFrequency
 import com.zaiki.trippawl.data.backup.BackupRestoreManager
 import com.zaiki.trippawl.data.backup.LocalBackupFileUi
 import com.zaiki.trippawl.data.backup.RestoreMode
+import com.zaiki.trippawl.data.update.AppUpdateInfo
+import com.zaiki.trippawl.data.update.AppUpdateManager
 import com.zaiki.trippawl.domain.model.FuelEfficiencyUnit
 import com.zaiki.trippawl.domain.model.MaintenanceMarkupMode
 import com.zaiki.trippawl.domain.model.PricingSettings
@@ -69,7 +71,11 @@ data class SettingsFormUiState(
     val localBackupFiles: List<LocalBackupFileUi> = emptyList(),
     val isBackupBusy: Boolean = false,
     val backupStatusMessage: String? = null,
-    val isBackupStatusError: Boolean = false
+    val isBackupStatusError: Boolean = false,
+    // GitHub App Updates
+    val updateInfo: AppUpdateInfo? = null,
+    val isCheckingForUpdate: Boolean = false,
+    val updateCheckMessage: String? = null
 ) {
     /**
      * Converts the user's mileage input (`km/L` or `L/100km`) into `km/L`.
@@ -99,7 +105,8 @@ data class SettingsFormUiState(
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val settingsRepository: SettingsRepository,
-    private val backupRestoreManager: BackupRestoreManager
+    private val backupRestoreManager: BackupRestoreManager,
+    private val appUpdateManager: AppUpdateManager
 ) : ViewModel() {
 
     private val localEdits = MutableStateFlow(SettingsFormUiState())
@@ -749,5 +756,49 @@ class SettingsViewModel @Inject constructor(
         val firstDot = cleaned.indexOf('.')
         return if (firstDot == -1) cleaned
         else cleaned.substring(0, firstDot + 1) + cleaned.substring(firstDot + 1).replace(".", "")
+    }
+
+    fun checkForUpdates() {
+        viewModelScope.launch {
+            localEdits.update { it.copy(isCheckingForUpdate = true, updateCheckMessage = "Checking GitHub Releases...") }
+            appUpdateManager.checkForUpdates().fold(
+                onSuccess = { info ->
+                    val msg = if (info.isUpdateAvailable) {
+                        "🎉 New version v${info.latestVersion} available!"
+                    } else {
+                        "✓ You have the latest version (v${info.currentVersion})"
+                    }
+                    localEdits.update { it.copy(isCheckingForUpdate = false, updateInfo = info, updateCheckMessage = msg) }
+                },
+                onFailure = { err ->
+                    localEdits.update {
+                        it.copy(
+                            isCheckingForUpdate = false,
+                            updateCheckMessage = "Could not check updates: ${err.localizedMessage ?: "Network error"}"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun downloadOrInstallUpdate() {
+        val info = localEdits.value.updateInfo ?: return
+        val apk = info.apkDownloadUrl
+        if (!apk.isNullOrBlank()) {
+            runCatching {
+                appUpdateManager.startDownloadViaManager(apk, info.latestVersion)
+                localEdits.update { it.copy(updateCheckMessage = "Downloading APK to Downloads folder...") }
+            }.onFailure {
+                appUpdateManager.openReleaseOrDownloadInBrowser(apk)
+            }
+        } else {
+            appUpdateManager.openReleaseOrDownloadInBrowser(info.releasePageUrl)
+        }
+    }
+
+    fun openGitHubReleasesPage() {
+        val url = localEdits.value.updateInfo?.releasePageUrl ?: AppUpdateManager.REPO_HTML_URL
+        appUpdateManager.openReleaseOrDownloadInBrowser(url)
     }
 }
