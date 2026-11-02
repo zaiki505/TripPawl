@@ -235,7 +235,7 @@ fun DashboardScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "HI THERE, WELCOME TO",
+                            text = "HI THERE 👋, WELCOME TO",
                             style = MaterialTheme.typography.labelMedium,
                             color = colors.highlight,
                             fontWeight = FontWeight.Bold

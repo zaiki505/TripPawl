@@ -914,16 +914,22 @@ class DriveTrackingManager @Inject constructor(
                 val totalText = "${settings.currencySymbol} ${String.format(Locale.US, "%.2f", calc.totalTripFare)}"
                 val durationMin = ((summary.arrivalTimeMillis - summary.startTimeMillis).coerceAtLeast(1_000L) / 60_000L)
 
+                val detailedText = buildString {
+                    appendLine("Distance: $distText  ·  Duration: ${durationMin}m (${summary.gpsPointsCount} GPS pts)")
+                    appendLine("Estimated Split: $shareText / pax  ($paxCount pax · Total $totalText)")
+                    appendLine()
+                    append("Tap to review passengers, add tolls or parking, and save to your ledger.")
+                }.trim()
+
                 val notification = NotificationCompat.Builder(appContext, CHANNEL_ID_DRIVE_ALERTS)
                     .setSmallIcon(android.R.drawable.ic_dialog_map)
-                    .setContentTitle("Trip Ended · $distText Driven")
-                    .setContentText("Est. $shareText/pax ($paxCount pax · Total $totalText) · Tap to review & save")
+                    .setSubText("TripPawl · Trip Summary")
+                    .setContentTitle("🏁 Trip Ended · $distText Driven")
+                    .setContentText("Est. $shareText/pax ($paxCount pax · Total $totalText)")
                     .setStyle(
-                        NotificationCompat.BigTextStyle().bigText(
-                            "Distance: $distText (${summary.gpsPointsCount} GPS pts · ${durationMin}m)\n" +
-                                "Estimated Share: $shareText per passenger ($paxCount pax)\n" +
-                                "Total Trip Cost: $totalText · Tap to add tolls/parking & save to ledger."
-                        )
+                        NotificationCompat.BigTextStyle()
+                            .setBigContentTitle("🏁 Trip Ended · $distText Driven")
+                            .bigText(detailedText)
                     )
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setCategory(NotificationCompat.CATEGORY_STATUS)
@@ -992,17 +998,21 @@ class DriveTrackingManager @Inject constructor(
             .entries
             .sortedByDescending { it.value }
 
-        val shortSummary = "You still have $totalText to collect from ${unpaidGroups.size} trip(s) (${riderTotals.size} rider(s))."
+        val shortSummary = "${unpaidGroups.size} unpaid trip(s) from ${riderTotals.size} passenger(s) · Tap to review"
 
         val detailedLines = buildString {
-            appendLine("Driver Reminder: You still have $totalText uncollected across ${unpaidGroups.size} trip(s):")
+            appendLine("You have $totalText uncollected across ${unpaidGroups.size} trip(s):")
+            appendLine()
             riderTotals.take(5).forEach { (name, amt) ->
-                appendLine("• Collect ${settings.currencySymbol} ${String.format(Locale.US, "%.2f", amt)} from $name")
+                val riderTripCount = unpaidTrips.count { it.riderName == name }
+                val tripLabel = if (riderTripCount == 1) "1 trip" else "$riderTripCount trips"
+                appendLine("  • $name — ${settings.currencySymbol} ${String.format(Locale.US, "%.2f", amt)} ($tripLabel)")
             }
             if (riderTotals.size > 5) {
-                appendLine("• +${riderTotals.size - 5} more rider(s)")
+                appendLine("  • +${riderTotals.size - 5} more passenger(s)")
             }
-            append("Tap to review your ledger and mark collected payments as Paid.")
+            appendLine()
+            append("Tap to open TripPawl and mark collected payments as Paid.")
         }.trim()
 
         runCatching {
@@ -1018,9 +1028,14 @@ class DriveTrackingManager @Inject constructor(
 
             val notification = NotificationCompat.Builder(appContext, CHANNEL_ID_DRIVE_ALERTS)
                 .setSmallIcon(android.R.drawable.ic_popup_reminder)
-                .setContentTitle("Payment Collection Reminder · $totalText")
+                .setSubText("TripPawl · Payment Alert")
+                .setContentTitle("💸 Unpaid Fares Alert · $totalText")
                 .setContentText(shortSummary)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(detailedLines))
+                .setStyle(
+                    NotificationCompat.BigTextStyle()
+                        .setBigContentTitle("💸 Unpaid Fares Alert · $totalText")
+                        .bigText(detailedLines)
+                )
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setAutoCancel(true)
@@ -1046,9 +1061,16 @@ class DriveTrackingManager @Inject constructor(
         val settings = settingsRepository.settingsFlow.first()
         val totalDue = unpaidShares.sumOf { it.calculatedFare }
         val totalText = "${settings.currencySymbol} ${String.format(Locale.US, "%.2f", totalDue)}"
-        val ridersOwing = unpaidShares.joinToString(", ") {
-            "${it.riderName} (${settings.currencySymbol} ${String.format(Locale.US, "%.2f", it.calculatedFare)})"
-        }
+
+        val detailedGroupLines = buildString {
+            appendLine("Uncollected fares for '${group.displayTitle}' (${String.format(Locale.US, "%.1f", group.distanceKm)} km):")
+            appendLine()
+            unpaidShares.forEach { share ->
+                appendLine("  • ${share.riderName} — ${settings.currencySymbol} ${String.format(Locale.US, "%.2f", share.calculatedFare)}")
+            }
+            appendLine()
+            append("Total Due: $totalText  ·  Tap to open TripPawl and mark Paid.")
+        }.trim()
 
         runCatching {
             val openIntent = Intent(appContext, MainActivity::class.java).apply {
@@ -1063,14 +1085,13 @@ class DriveTrackingManager @Inject constructor(
 
             val notification = NotificationCompat.Builder(appContext, CHANNEL_ID_DRIVE_ALERTS)
                 .setSmallIcon(android.R.drawable.ic_popup_reminder)
-                .setContentTitle("Collect $totalText · ${group.displayTitle}")
-                .setContentText("Reminder: Payment still to collect for ${group.displayTitle}")
+                .setSubText("TripPawl · Trip Reminder")
+                .setContentTitle("💸 Collect $totalText · ${group.displayTitle}")
+                .setContentText("${unpaidShares.size} unpaid passenger(s) · Tap to review & mark paid")
                 .setStyle(
-                    NotificationCompat.BigTextStyle().bigText(
-                        "Driver Collection Reminder for '${group.displayTitle}':\n" +
-                            "You still have $totalText to collect from: $ridersOwing\n" +
-                            "Tap to open TripPawl and mark collected when paid."
-                    )
+                    NotificationCompat.BigTextStyle()
+                        .setBigContentTitle("💸 Collect $totalText · ${group.displayTitle}")
+                        .bigText(detailedGroupLines)
                 )
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)

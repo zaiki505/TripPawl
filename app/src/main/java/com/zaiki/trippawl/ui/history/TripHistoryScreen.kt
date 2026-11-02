@@ -9,11 +9,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,6 +31,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,7 +42,6 @@ import com.zaiki.trippawl.domain.model.TripFilter
 import com.zaiki.trippawl.ui.components.ZaikiBackToTopButton
 import com.zaiki.trippawl.ui.components.ZaikiBentoCard
 import com.zaiki.trippawl.ui.components.ZaikiCircularAddFab
-import com.zaiki.trippawl.ui.components.ZaikiDetailPanel
 import com.zaiki.trippawl.ui.components.ZaikiFilterChip
 import com.zaiki.trippawl.ui.components.ZaikiFormField
 import com.zaiki.trippawl.ui.components.ZaikiFormStatusBanner
@@ -55,7 +53,6 @@ import com.zaiki.trippawl.ui.components.ZaikiSectionHeader
 import com.zaiki.trippawl.ui.components.ZaikiTagCategory
 import com.zaiki.trippawl.ui.components.ZaikiTagPill
 import com.zaiki.trippawl.ui.components.zaikiSquishClickable
-import com.zaiki.trippawl.ui.dashboard.DashboardTimeFilter
 import com.zaiki.trippawl.ui.dashboard.DashboardTimeFilterPill
 import com.zaiki.trippawl.ui.dashboard.formatDecimal
 import com.zaiki.trippawl.ui.dashboard.formatMoney
@@ -69,11 +66,12 @@ import java.util.Locale
 
 /**
  * Trip History & Ledger Screen
- * - Top Time Filter Pill (`Week | Month | All Time`) + Fuel Spent, Total Collected & Waived Carpool Fares cards.
- * - Groups trips by Week, Month, or All Time according to the selected time pill.
+ * - Time Grouping Pill (`Week | Month | All Time`) to group trips into Weekly, Monthly, or All Time sections.
+ * - Each section displays 3 status total tags: Paid Total, Unpaid Total, and Waived Total.
  * - Search bar filters by trip name, passenger name, or notes.
  * - Tap individual passenger chips or group badge to toggle payment status; tap card to manage/edit.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TripHistoryScreen(
     viewModel: TripHistoryViewModel,
@@ -116,133 +114,13 @@ fun TripHistoryScreen(
                 )
             }
 
-            // 1.5 Time Period Option Pill (Week | Month | All Time)
+            // 1.5 Time Grouping Option Pill (Week | Month | All Time)
             item {
                 DashboardTimeFilterPill(
                     selectedFilter = uiState.timeFilter,
                     onFilterSelected = viewModel::onTimeFilterSelected,
                     modifier = Modifier.padding(vertical = 2.dp)
                 )
-            }
-
-            // 1.6 Top Summary Cards: Fuel Spent & Total Collected
-            item {
-                val timeFilterLabel = uiState.timeFilter.label
-                val isAllTime = uiState.timeFilter == DashboardTimeFilter.ALL_TIME
-                val periodQualifier = if (isAllTime) "all-time" else "this ${timeFilterLabel.lowercase()}"
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ZaikiBentoCard(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        contentPadding = PaddingValues(ZaikiDimens.CardPaddingCompact)
-                    ) {
-                        Text(
-                            text = "FUEL SPENT (${timeFilterLabel.uppercase()})",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.tagWebText,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = formatMoney(currency, uiState.metrics.totalFuelSpentCurrentMonth),
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = colors.textPrimary,
-                            fontWeight = FontWeight.ExtraBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "${uiState.metrics.currentMonthTripCount} trip(s) $periodQualifier",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textMuted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    ZaikiBentoCard(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        contentPadding = PaddingValues(ZaikiDimens.CardPaddingCompact)
-                    ) {
-                        Text(
-                            text = if (isAllTime) "TOTAL COLLECTED" else "COLLECTED (${timeFilterLabel.uppercase()})",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.available,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = formatMoney(currency, uiState.metrics.totalSettledPayments),
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = colors.available,
-                            fontWeight = FontWeight.ExtraBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "${uiState.metrics.settledTripCount} paid share(s) $periodQualifier",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textMuted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-
-            // 1.7 Top Summary Panel: Waived Carpool Fares
-            item {
-                val isAllTime = uiState.timeFilter == DashboardTimeFilter.ALL_TIME
-                val waivedPeriodQualifier = if (isAllTime) "" else " this ${uiState.timeFilter.label.lowercase()}"
-
-                ZaikiDetailPanel(
-                    contentPadding = PaddingValues(horizontal = 15.dp, vertical = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isAllTime) "WAIVED CARPOOL FARES" else "WAIVED FARES (${uiState.timeFilter.label.uppercase()})",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = colors.highlight
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Total Waived: ${formatMoney(currency, uiState.metrics.totalWaivedAmount)}",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = colors.textPrimary,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Carpool shares forgiven for friends & colleagues (${uiState.metrics.waivedTripCount} waived$waivedPeriodQualifier)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.textMuted
-                            )
-                        }
-                        Spacer(modifier = Modifier.padding(start = 8.dp))
-                        ZaikiTagPill(
-                            text = "${uiState.metrics.waivedTripCount} Waived",
-                            category = ZaikiTagCategory.PERSONAL
-                        )
-                    }
-                }
             }
 
             // 2. Search Bar & Filter Chips ("All", "Unpaid Only", "Paid Only", "Alert Unpaid")
@@ -325,31 +203,40 @@ fun TripHistoryScreen(
             } else {
                 uiState.groupedSections.forEach { section ->
                     item(key = "header_${section.key}") {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 6.dp, bottom = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = section.title,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = colors.highlight,
-                                    fontWeight = FontWeight.ExtraBold
+                            Text(
+                                text = section.title,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = colors.highlight,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text(
+                                text = section.subtitle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textMuted
+                            )
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                SectionStatusTotalTag(
+                                    label = "Paid ${formatMoney(currency, section.paidTotal)}",
+                                    tint = colors.available
                                 )
-                                Text(
-                                    text = section.subtitle,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = colors.textMuted
+                                SectionStatusTotalTag(
+                                    label = "Unpaid ${formatMoney(currency, section.unpaidTotal)}",
+                                    tint = colors.unavailable
+                                )
+                                SectionStatusTotalTag(
+                                    label = "Waived ${formatMoney(currency, section.waivedTotal)}",
+                                    tint = colors.highlight
                                 )
                             }
-                            Spacer(modifier = Modifier.padding(start = 8.dp))
-                            ZaikiTagPill(
-                                text = "Total ${formatMoney(currency, section.totalFare)}",
-                                category = ZaikiTagCategory.PERSONAL
-                            )
                         }
                     }
 
@@ -520,6 +407,28 @@ fun TripHistoryScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
+        )
+    }
+}
+
+@Composable
+private fun SectionStatusTotalTag(
+    label: String,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(ZaikiRadii.Pill)
+            .background(tint.copy(alpha = 0.14f))
+            .border(BorderStroke(1.dp, tint.copy(alpha = 0.45f)), ZaikiRadii.Pill)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = tint,
+            fontWeight = FontWeight.Bold
         )
     }
 }

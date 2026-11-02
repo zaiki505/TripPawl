@@ -42,12 +42,12 @@ interface TripDao {
                 )),
                 0.0
             ) AS totalFuelSpentCurrentMonth,
-            COALESCE(SUM(CASE WHEN isPaid = 1 AND isWaived = 0 AND ((tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis) OR (settledDate IS NOT NULL AND settledDate >= :startTimeMillis AND settledDate <= :endTimeMillis)) THEN calculatedFare ELSE 0.0 END), 0.0) AS totalSettledPayments,
+            COALESCE(SUM(CASE WHEN isPaid = 1 AND isWaived = 0 AND tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis THEN calculatedFare ELSE 0.0 END), 0.0) AS totalSettledPayments,
             COUNT(CASE WHEN isPaid = 0 AND isWaived = 0 THEN 1 END) AS unpaidTripCount,
             COUNT(DISTINCT CASE WHEN tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis THEN (CASE WHEN tripGroupId != '' THEN tripGroupId ELSE CAST(id AS TEXT) END) END) AS currentMonthTripCount,
-            COUNT(CASE WHEN isPaid = 1 AND isWaived = 0 AND ((tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis) OR (settledDate IS NOT NULL AND settledDate >= :startTimeMillis AND settledDate <= :endTimeMillis)) THEN 1 END) AS settledTripCount,
-            COALESCE(SUM(CASE WHEN isWaived = 1 AND ((tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis) OR (settledDate IS NOT NULL AND settledDate >= :startTimeMillis AND settledDate <= :endTimeMillis)) THEN calculatedFare ELSE 0.0 END), 0.0) AS totalWaivedAmount,
-            COUNT(CASE WHEN isWaived = 1 AND ((tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis) OR (settledDate IS NOT NULL AND settledDate >= :startTimeMillis AND settledDate <= :endTimeMillis)) THEN 1 END) AS waivedTripCount
+            COUNT(CASE WHEN isPaid = 1 AND isWaived = 0 AND tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis THEN 1 END) AS settledTripCount,
+            COALESCE(SUM(CASE WHEN isWaived = 1 AND tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis THEN calculatedFare ELSE 0.0 END), 0.0) AS totalWaivedAmount,
+            COUNT(CASE WHEN isWaived = 1 AND tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis THEN 1 END) AS waivedTripCount
         FROM trips
         """
     )

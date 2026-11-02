@@ -2,7 +2,6 @@ package com.zaiki.trippawl.ui.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zaiki.trippawl.domain.model.DashboardMetrics
 import com.zaiki.trippawl.domain.model.GroupedTrip
 import com.zaiki.trippawl.domain.model.PricingSettings
 import com.zaiki.trippawl.domain.model.Trip
@@ -13,13 +12,10 @@ import com.zaiki.trippawl.domain.repository.TripRepository
 import com.zaiki.trippawl.tracking.DriveTrackingManager
 import com.zaiki.trippawl.ui.dashboard.DashboardTimeFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -33,7 +29,9 @@ data class TripHistoryTimeGroup(
     val title: String,
     val subtitle: String,
     val groups: List<GroupedTrip>,
-    val totalFare: Double,
+    val paidTotal: Double,
+    val unpaidTotal: Double,
+    val waivedTotal: Double,
     val totalFuel: Double
 )
 
@@ -41,7 +39,6 @@ data class TripHistoryUiState(
     val searchQuery: String = "",
     val activeFilter: TripFilter = TripFilter.ALL,
     val timeFilter: DashboardTimeFilter = DashboardTimeFilter.MONTH,
-    val metrics: DashboardMetrics = DashboardMetrics(),
     val filteredGroups: List<GroupedTrip> = emptyList(),
     val groupedSections: List<TripHistoryTimeGroup> = emptyList(),
     val allTripsCount: Int = 0,
@@ -65,18 +62,6 @@ class TripHistoryViewModel @Inject constructor(
     private val selectedGroupKeyFlow = MutableStateFlow<String?>(null)
     private val statusBannerFlow = MutableStateFlow<String?>(null)
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val metricsWithFilterFlow = selectedTimeFilterFlow.flatMapLatest { filter ->
-        val bounds = when (filter) {
-            DashboardTimeFilter.WEEK -> computeCurrentWeekBounds()
-            DashboardTimeFilter.MONTH -> computeCurrentMonthBounds()
-            DashboardTimeFilter.ALL_TIME -> 0L to Long.MAX_VALUE
-        }
-        tripRepository.observeDashboardMetrics(bounds.first, bounds.second).map { metrics ->
-            metrics to filter
-        }
-    }
-
     init {
         viewModelScope.launch {
             tripRepository.processDueRecurringTrips()
@@ -88,9 +73,8 @@ class TripHistoryViewModel @Inject constructor(
         searchQueryFlow,
         filterFlow,
         settingsRepository.settingsFlow,
-        metricsWithFilterFlow
-    ) { allTrips, query, filter, settings, metricsAndTimeFilter ->
-        val (metrics, timeFilter) = metricsAndTimeFilter
+        selectedTimeFilterFlow
+    ) { allTrips, query, filter, settings, timeFilter ->
         val allGroups = allTrips.groupByTripSession()
         val trimmedQuery = query.trim().lowercase()
         val bySearch = if (trimmedQuery.isEmpty()) {
@@ -120,7 +104,6 @@ class TripHistoryViewModel @Inject constructor(
                 searchQuery = query,
                 activeFilter = filter,
                 timeFilter = timeFilter,
-                metrics = metrics,
                 filteredGroups = filtered,
                 groupedSections = sections,
                 allTripsCount = bySearch.size,
@@ -273,15 +256,11 @@ class TripHistoryViewModel @Inject constructor(
                         } else {
                             "WEEK OF ${shortFmt.format(Date(weekStart))} – ${yearFmt.format(Date(weekEnd))}".uppercase(Locale.US)
                         }
-                        val totalFare = bucket.sumOf { it.totalPassengersFare }
-                        val totalFuel = bucket.sumOf { it.fuelCost }
-                        TripHistoryTimeGroup(
+                        buildSectionGroup(
                             key = "week_$weekStart",
                             title = title,
-                            subtitle = "${bucket.size} trip(s) · Fuel $currencySymbol ${String.format(Locale.US, "%.2f", totalFuel)}",
-                            groups = bucket,
-                            totalFare = totalFare,
-                            totalFuel = totalFuel
+                            bucket = bucket,
+                            currencySymbol = currencySymbol
                         )
                     }
             }
@@ -300,34 +279,49 @@ class TripHistoryViewModel @Inject constructor(
                         } else {
                             monthLabel
                         }
-                        val totalFare = bucket.sumOf { it.totalPassengersFare }
-                        val totalFuel = bucket.sumOf { it.fuelCost }
-                        TripHistoryTimeGroup(
+                        buildSectionGroup(
                             key = "month_$monthStart",
                             title = title,
-                            subtitle = "${bucket.size} trip(s) · Fuel $currencySymbol ${String.format(Locale.US, "%.2f", totalFuel)}",
-                            groups = bucket,
-                            totalFare = totalFare,
-                            totalFuel = totalFuel
+                            bucket = bucket,
+                            currencySymbol = currencySymbol
                         )
                     }
             }
 
             DashboardTimeFilter.ALL_TIME -> {
-                val totalFare = groups.sumOf { it.totalPassengersFare }
-                val totalFuel = groups.sumOf { it.fuelCost }
                 listOf(
-                    TripHistoryTimeGroup(
+                    buildSectionGroup(
                         key = "all_time",
                         title = "ALL TIME TRIPS",
-                        subtitle = "${groups.size} trip(s) · Fuel $currencySymbol ${String.format(Locale.US, "%.2f", totalFuel)}",
-                        groups = groups,
-                        totalFare = totalFare,
-                        totalFuel = totalFuel
+                        bucket = groups,
+                        currencySymbol = currencySymbol
                     )
                 )
             }
         }
+    }
+
+    private fun buildSectionGroup(
+        key: String,
+        title: String,
+        bucket: List<GroupedTrip>,
+        currencySymbol: String
+    ): TripHistoryTimeGroup {
+        val shares = bucket.flatMap { it.passengerShares }
+        val paidTotal = shares.filter { it.isPaid && !it.isWaived }.sumOf { it.calculatedFare }
+        val unpaidTotal = shares.filter { !it.isPaid && !it.isWaived }.sumOf { it.calculatedFare }
+        val waivedTotal = shares.filter { it.isWaived }.sumOf { it.calculatedFare }
+        val totalFuel = bucket.sumOf { it.fuelCost }
+        return TripHistoryTimeGroup(
+            key = key,
+            title = title,
+            subtitle = "${bucket.size} trip(s) · Fuel $currencySymbol ${String.format(Locale.US, "%.2f", totalFuel)}",
+            groups = bucket,
+            paidTotal = paidTotal,
+            unpaidTotal = unpaidTotal,
+            waivedTotal = waivedTotal,
+            totalFuel = totalFuel
+        )
     }
 
     private fun computeWeekBoundsForTimestamp(timestampMillis: Long): Pair<Long, Long> {

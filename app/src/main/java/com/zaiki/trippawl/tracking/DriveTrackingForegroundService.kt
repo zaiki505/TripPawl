@@ -333,21 +333,31 @@ class DriveTrackingForegroundService : Service() {
         val distText = String.format(Locale.US, "%.2f km", distanceKm)
         val speedText = String.format(Locale.US, "%.0f km/h", speedKmh)
 
+        val titleText = if (isInitialPrompt) {
+            "🚗 Who is riding with you today?"
+        } else {
+            "🚗 Recording Drive · $distText ($speedText)"
+        }
+        val bodyText = if (isInitialPrompt) {
+            "Drive started ($triggerSource) · Tap to select passengers"
+        } else {
+            "Background GPS active · Tap to select passengers or finish drive"
+        }
+        val expandedBodyText = if (isInitialPrompt) {
+            "Drive started via $triggerSource.\n\nTap below to check the passengers riding with you while GPS logs your route in the background."
+        } else {
+            "Distance: $distText  ·  Speed: $speedText\n\nBackground GPS tracking is active. Tap to update passengers or finish the drive."
+        }
+
         return NotificationCompat.Builder(this, channelId)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-            .setContentTitle(
-                if (isInitialPrompt) {
-                    "Who is riding with you today?"
-                } else {
-                    "Recording Drive · $distText ($speedText)"
-                }
-            )
-            .setContentText(
-                if (isInitialPrompt) {
-                    "Drive started ($triggerSource) · Tap to select passengers & log GPS"
-                } else {
-                    "Background GPS active · Tap to select passengers or finish drive"
-                }
+            .setSubText("TripPawl · Live GPS")
+            .setContentTitle(titleText)
+            .setContentText(bodyText)
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .setBigContentTitle(titleText)
+                    .bigText(expandedBodyText)
             )
             .setPriority(
                 if (isInitialPrompt) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW
