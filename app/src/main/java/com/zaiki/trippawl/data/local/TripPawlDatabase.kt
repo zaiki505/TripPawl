@@ -20,7 +20,7 @@ import com.zaiki.trippawl.data.local.entity.TripEntity
         TripEntity::class,
         DriveLogEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class TripPawlDatabase : RoomDatabase() {
@@ -63,6 +63,15 @@ abstract class TripPawlDatabase : RoomDatabase() {
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `trips` ADD COLUMN `recurrenceEndDate` INTEGER DEFAULT NULL")
+            }
+        }
+
+        /**
+         * v6 -> v7 (non-destructive): adds `trips.vehicleName` to record the car profile used on each trip.
+         */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `trips` ADD COLUMN `vehicleName` TEXT NOT NULL DEFAULT ''")
             }
         }
     }

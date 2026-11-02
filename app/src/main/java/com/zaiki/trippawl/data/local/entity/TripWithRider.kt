@@ -49,7 +49,8 @@ data class TripWithRider(
         recurrenceInterval = trip.recurrenceInterval,
         recurrenceUnit = RecurrenceUnit.fromNameOrNone(trip.recurrenceUnit),
         nextOccurrenceDate = trip.nextOccurrenceDate,
-        recurrenceEndDate = trip.recurrenceEndDate
+        recurrenceEndDate = trip.recurrenceEndDate,
+        vehicleName = trip.vehicleName
     )
 }
 

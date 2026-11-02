@@ -1,7 +1,10 @@
 package com.zaiki.trippawl.tracking
 
+import android.bluetooth.BluetoothA2dp
 import android.bluetooth.BluetoothClass
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothHeadset
+import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -66,10 +69,27 @@ class CarBluetoothReceiver : BroadcastReceiver() {
 
                 when (action) {
                     BluetoothDevice.ACTION_ACL_CONNECTED -> {
-                        driveTrackingManager.onCarBluetoothConnected(label)
+                        driveTrackingManager.onCarBluetoothConnected(
+                            deviceLabel = label,
+                            deviceAddress = deviceAddress,
+                            deviceName = deviceName
+                        )
                     }
                     BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                         driveTrackingManager.onCarBluetoothDisconnected()
+                    }
+                    BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED,
+                    BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED -> {
+                        val state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
+                        if (state == BluetoothProfile.STATE_CONNECTED) {
+                            driveTrackingManager.onCarBluetoothConnected(
+                                deviceLabel = label,
+                                deviceAddress = deviceAddress,
+                                deviceName = deviceName
+                            )
+                        } else if (state == BluetoothProfile.STATE_DISCONNECTED) {
+                            driveTrackingManager.onCarBluetoothDisconnected()
+                        }
                     }
                 }
             } finally {

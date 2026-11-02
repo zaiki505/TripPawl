@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +43,7 @@ import com.zaiki.trippawl.domain.model.TripFilter
 import com.zaiki.trippawl.ui.components.ZaikiBackToTopButton
 import com.zaiki.trippawl.ui.components.ZaikiBentoCard
 import com.zaiki.trippawl.ui.components.ZaikiCircularAddFab
+import com.zaiki.trippawl.ui.components.ZaikiDetailPanel
 import com.zaiki.trippawl.ui.components.ZaikiFilterChip
 import com.zaiki.trippawl.ui.components.ZaikiFormField
 import com.zaiki.trippawl.ui.components.ZaikiFormStatusBanner
@@ -52,6 +55,8 @@ import com.zaiki.trippawl.ui.components.ZaikiSectionHeader
 import com.zaiki.trippawl.ui.components.ZaikiTagCategory
 import com.zaiki.trippawl.ui.components.ZaikiTagPill
 import com.zaiki.trippawl.ui.components.zaikiSquishClickable
+import com.zaiki.trippawl.ui.dashboard.DashboardTimeFilter
+import com.zaiki.trippawl.ui.dashboard.DashboardTimeFilterPill
 import com.zaiki.trippawl.ui.dashboard.formatDecimal
 import com.zaiki.trippawl.ui.dashboard.formatMoney
 import com.zaiki.trippawl.ui.theme.ZaikiDimens
@@ -64,11 +69,10 @@ import java.util.Locale
 
 /**
  * Trip History & Ledger Screen
- * - Displays grouped trips (e.g. "Monday Class · 3 passengers · Total RM 9.00").
+ * - Top Time Filter Pill (`Week | Month | All Time`) + Fuel Spent, Total Collected & Waived Carpool Fares cards.
+ * - Groups trips by Week, Month, or All Time according to the selected time pill.
  * - Search bar filters by trip name, passenger name, or notes.
- * - Swipe horizontally to toggle payment status for the group, or tap individual passenger chips
- *   to toggle a single passenger's payment status.
- * - Tap or long-press a card to edit full trip details (trip name, passengers, date/time, fuel consumption).
+ * - Tap individual passenger chips or group badge to toggle payment status; tap card to manage/edit.
  */
 @Composable
 fun TripHistoryScreen(
@@ -110,6 +114,135 @@ fun TripHistoryScreen(
                         )
                     }
                 )
+            }
+
+            // 1.5 Time Period Option Pill (Week | Month | All Time)
+            item {
+                DashboardTimeFilterPill(
+                    selectedFilter = uiState.timeFilter,
+                    onFilterSelected = viewModel::onTimeFilterSelected,
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
+            }
+
+            // 1.6 Top Summary Cards: Fuel Spent & Total Collected
+            item {
+                val timeFilterLabel = uiState.timeFilter.label
+                val isAllTime = uiState.timeFilter == DashboardTimeFilter.ALL_TIME
+                val periodQualifier = if (isAllTime) "all-time" else "this ${timeFilterLabel.lowercase()}"
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ZaikiBentoCard(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentPadding = PaddingValues(ZaikiDimens.CardPaddingCompact)
+                    ) {
+                        Text(
+                            text = "FUEL SPENT (${timeFilterLabel.uppercase()})",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.tagWebText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = formatMoney(currency, uiState.metrics.totalFuelSpentCurrentMonth),
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.ExtraBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${uiState.metrics.currentMonthTripCount} trip(s) $periodQualifier",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    ZaikiBentoCard(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentPadding = PaddingValues(ZaikiDimens.CardPaddingCompact)
+                    ) {
+                        Text(
+                            text = if (isAllTime) "TOTAL COLLECTED" else "COLLECTED (${timeFilterLabel.uppercase()})",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.available,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = formatMoney(currency, uiState.metrics.totalSettledPayments),
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = colors.available,
+                            fontWeight = FontWeight.ExtraBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${uiState.metrics.settledTripCount} paid share(s) $periodQualifier",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            // 1.7 Top Summary Panel: Waived Carpool Fares
+            item {
+                val isAllTime = uiState.timeFilter == DashboardTimeFilter.ALL_TIME
+                val waivedPeriodQualifier = if (isAllTime) "" else " this ${uiState.timeFilter.label.lowercase()}"
+
+                ZaikiDetailPanel(
+                    contentPadding = PaddingValues(horizontal = 15.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isAllTime) "WAIVED CARPOOL FARES" else "WAIVED FARES (${uiState.timeFilter.label.uppercase()})",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.highlight
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Total Waived: ${formatMoney(currency, uiState.metrics.totalWaivedAmount)}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Carpool shares forgiven for friends & colleagues (${uiState.metrics.waivedTripCount} waived$waivedPeriodQualifier)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textMuted
+                            )
+                        }
+                        Spacer(modifier = Modifier.padding(start = 8.dp))
+                        ZaikiTagPill(
+                            text = "${uiState.metrics.waivedTripCount} Waived",
+                            category = ZaikiTagCategory.PERSONAL
+                        )
+                    }
+                }
             }
 
             // 2. Search Bar & Filter Chips ("All", "Unpaid Only", "Paid Only", "Alert Unpaid")
@@ -161,15 +294,15 @@ fun TripHistoryScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Tap payment badge to toggle Paid/Unpaid · Tap card to Edit trip details",
+                        text = "Grouped by ${uiState.timeFilter.label} · Tap badge to toggle Paid/Unpaid · Tap card to Edit",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textFaint
                     )
                 }
             }
 
-            // 3. Filtered Grouped Trips List
-            if (uiState.filteredGroups.isEmpty()) {
+            // 3. Filtered & Time-Grouped Trips List (Week / Month / All Time sections)
+            if (uiState.groupedSections.isEmpty()) {
                 item {
                     ZaikiBentoCard {
                         Text(
@@ -190,17 +323,48 @@ fun TripHistoryScreen(
                     }
                 }
             } else {
-                items(
-                    items = uiState.filteredGroups,
-                    key = { it.groupKey }
-                ) { group ->
-                    GroupedTripLedgerDetailCard(
-                        group = group,
-                        currencySymbol = currency,
-                        onToggleGroupPaid = { viewModel.toggleGroupPaymentStatus(group) },
-                        onToggleSinglePassengerPaid = viewModel::toggleSinglePassengerPaid,
-                        onOpenActions = { viewModel.openGroupActionsDialog(group) }
-                    )
+                uiState.groupedSections.forEach { section ->
+                    item(key = "header_${section.key}") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp, bottom = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = section.title,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = colors.highlight,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                                Text(
+                                    text = section.subtitle,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textMuted
+                                )
+                            }
+                            Spacer(modifier = Modifier.padding(start = 8.dp))
+                            ZaikiTagPill(
+                                text = "Total ${formatMoney(currency, section.totalFare)}",
+                                category = ZaikiTagCategory.PERSONAL
+                            )
+                        }
+                    }
+
+                    items(
+                        items = section.groups,
+                        key = { "${section.key}_${it.groupKey}" }
+                    ) { group ->
+                        GroupedTripLedgerDetailCard(
+                            group = group,
+                            currencySymbol = currency,
+                            onToggleGroupPaid = { viewModel.toggleGroupPaymentStatus(group) },
+                            onToggleSinglePassengerPaid = viewModel::toggleSinglePassengerPaid,
+                            onOpenActions = { viewModel.openGroupActionsDialog(group) }
+                        )
+                    }
                 }
             }
         }
@@ -238,7 +402,7 @@ fun TripHistoryScreen(
             title = {
                 Column {
                     Text(
-                        text = "MANAGE GROUPED TRIP",
+                        text = "MANAGE TRIP",
                         style = MaterialTheme.typography.labelMedium,
                         color = colors.highlight
                     )
@@ -256,6 +420,8 @@ fun TripHistoryScreen(
                         text = "Pax: ${selectedGroup.passengerNamesSummary}\n" +
                             "Total: ${formatMoney(currency, selectedGroup.totalPassengersFare)} " +
                             "(${formatMoney(currency, selectedGroup.sharePerPerson)} / pax)" +
+                            (if (selectedGroup.vehicleName.isNotBlank()) "\nCar: ${selectedGroup.vehicleName}" else "") +
+                            (if (selectedGroup.tripNotes.isNotBlank()) "\nNotes: ${selectedGroup.tripNotes}" else "") +
                             (if (selectedGroup.waivedCount > 0) "\nWaived: ${selectedGroup.waivedCount} share(s) (${formatMoney(currency, selectedGroup.waivedTotalFare)})" else "") +
                             (selectedGroup.recurrenceSummaryLabel?.let { "\nRecurrence: $it" } ?: ""),
                         style = MaterialTheme.typography.bodyMedium,
@@ -295,10 +461,10 @@ fun TripHistoryScreen(
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    if (selectedGroup.passengerShares.size > 1) {
+                    if (selectedGroup.passengerShares.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "INDIVIDUAL PAX WAIVER & STATUS",
+                            text = "PASSENGER WAIVER & PAYMENT STATUS",
                             style = MaterialTheme.typography.labelSmall,
                             color = colors.highlight
                         )
@@ -341,7 +507,7 @@ fun TripHistoryScreen(
                         }
                     }
                     ZaikiSecondaryButton(
-                        text = "Delete Grouped Trip",
+                        text = "Delete Trip",
                         onClick = { viewModel.deleteGroup(selectedGroup) },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -425,8 +591,18 @@ internal fun GroupedTripLedgerDetailCard(
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
+                    val paxSubtitle = buildString {
+                        if (group.tripName.isNotBlank()) {
+                            append(group.passengerNamesSummary)
+                        } else {
+                            append("Pax: ${group.passengerNamesSummary}")
+                        }
+                        if (group.vehicleName.isNotBlank()) {
+                            append(" · ${group.vehicleName}")
+                        }
+                    }
                     Text(
-                        text = group.passengerNamesSummary,
+                        text = paxSubtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textBody,
                         fontWeight = FontWeight.Medium,
@@ -447,7 +623,7 @@ internal fun GroupedTripLedgerDetailCard(
                     if (group.tripNotes.isNotBlank()) {
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = group.tripNotes,
+                            text = "Note: ${group.tripNotes}",
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.highlight,
                             maxLines = 1,
@@ -465,8 +641,8 @@ internal fun GroupedTripLedgerDetailCard(
                 )
             }
 
-            // Individual Passenger Payment Pills when multiple passengers are grouped
-            if (group.passengerShares.size > 1) {
+            // Passenger Payment Pills rendered consistently for both 1-pax and multi-pax trips
+            if (group.passengerShares.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(10.dp))
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -619,6 +795,10 @@ internal fun TripLedgerDetailCard(
                             modifier = Modifier.weight(1f, fill = false)
                         )
                         ZaikiTagPill(
+                            text = "${trip.passengerCount.coerceAtLeast(1)} Pax",
+                            category = ZaikiTagCategory.PERSONAL
+                        )
+                        ZaikiTagPill(
                             text = if (trip.isAutoTracked) "GPS" else if (trip.isShortTrip) "Short" else "Long",
                             category = if (trip.isAutoTracked) {
                                 ZaikiTagCategory.PERSONAL
@@ -628,25 +808,35 @@ internal fun TripLedgerDetailCard(
                                 ZaikiTagCategory.SYSTEM
                             }
                         )
-                        if (trip.passengerCount > 1) {
-                            ZaikiTagPill(
-                                text = "${trip.passengerCount} Pax",
-                                category = ZaikiTagCategory.PERSONAL
-                            )
-                        }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${trip.riderName} · ${dateFormat.format(Date(trip.tripDate))}",
+                        text = buildString {
+                            append("${trip.riderName} · ${dateFormat.format(Date(trip.tripDate))}")
+                            if (trip.vehicleName.isNotBlank()) {
+                                append(" · ${trip.vehicleName}")
+                            }
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textMuted
                     )
+                    if (trip.tripNotes.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Note: ${trip.tripNotes}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.highlight,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.padding(start = 8.dp))
 
                 ZaikiPaymentStatusChip(
                     isPaid = trip.isPaid,
+                    isWaived = trip.isWaived,
                     onClick = onTogglePaid
                 )
             }

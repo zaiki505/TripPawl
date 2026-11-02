@@ -37,6 +37,38 @@ enum class UnpaidReminderInterval(val days: Int, val label: String) {
 }
 
 /**
+ * Represents an individual car / vehicle profile configured by the driver in Settings.
+ */
+data class VehicleProfile(
+    val id: String = DEFAULT_VEHICLE_ID,
+    val name: String = PricingSettings.DEFAULT_VEHICLE_NAME,
+    val preferredFuelType: String = PricingSettings.DEFAULT_PREFERRED_FUEL_TYPE,
+    val fuelEfficiencyUnit: FuelEfficiencyUnit = FuelEfficiencyUnit.KM_PER_LITER,
+    val fuelPricePerLiter: Double = PricingSettings.DEFAULT_FUEL_PRICE_PER_LITER,
+    val vehicleMileageKmPerL: Double = PricingSettings.DEFAULT_VEHICLE_MILEAGE_KM_PER_L,
+    val maintenanceMarkup: Double = PricingSettings.DEFAULT_MAINTENANCE_MARKUP,
+    val maintenanceMarkupMode: MaintenanceMarkupMode = MaintenanceMarkupMode.PER_KM
+) {
+    val ratePerKm: Double
+        get() = if (vehicleMileageKmPerL > 0.0 && fuelPricePerLiter >= 0.0) {
+            fuelPricePerLiter / vehicleMileageKmPerL
+        } else {
+            0.0
+        }
+
+    val litersPer100Km: Double
+        get() = if (vehicleMileageKmPerL > 0.0) {
+            ((100.0 / vehicleMileageKmPerL) * 100.0).roundToInt() / 100.0
+        } else {
+            0.0
+        }
+
+    companion object {
+        const val DEFAULT_VEHICLE_ID = "car_default"
+    }
+}
+
+/**
  * User-configurable Vehicle & Fuel Telemetry, pricing, and auto-tracking preferences stored in DataStore.
  */
 data class PricingSettings(
@@ -52,6 +84,8 @@ data class PricingSettings(
     val vehicleMileageKmPerL: Double = DEFAULT_VEHICLE_MILEAGE_KM_PER_L,
     val maintenanceMarkup: Double = DEFAULT_MAINTENANCE_MARKUP,
     val maintenanceMarkupMode: MaintenanceMarkupMode = MaintenanceMarkupMode.PER_KM,
+    val savedVehicles: List<VehicleProfile> = emptyList(),
+    val activeVehicleId: String = VehicleProfile.DEFAULT_VEHICLE_ID,
     val autoDetectDriveBluetooth: Boolean = true,
     val triggerBluetoothAddresses: Set<String> = emptySet(),
     val triggerBluetoothNames: Set<String> = emptySet(),
@@ -61,6 +95,45 @@ data class PricingSettings(
     val unpaidReminderInterval: UnpaidReminderInterval = UnpaidReminderInterval.DAYS_7,
     val lastUnpaidReminderTimestamp: Long = 0L
 ) {
+    /**
+     * Guaranteed non-empty list of configured car profiles.
+     */
+    val effectiveVehicles: List<VehicleProfile>
+        get() = savedVehicles.ifEmpty {
+            listOf(
+                VehicleProfile(
+                    id = activeVehicleId.ifBlank { VehicleProfile.DEFAULT_VEHICLE_ID },
+                    name = vehicleName.ifBlank { DEFAULT_VEHICLE_NAME },
+                    preferredFuelType = preferredFuelType.ifBlank { DEFAULT_PREFERRED_FUEL_TYPE },
+                    fuelEfficiencyUnit = fuelEfficiencyUnit,
+                    fuelPricePerLiter = fuelPricePerLiter,
+                    vehicleMileageKmPerL = vehicleMileageKmPerL,
+                    maintenanceMarkup = maintenanceMarkup,
+                    maintenanceMarkupMode = maintenanceMarkupMode
+                )
+            )
+        }
+
+    /**
+     * Currently active car profile.
+     */
+    val activeVehicleProfile: VehicleProfile
+        get() = effectiveVehicles.firstOrNull { it.id == activeVehicleId } ?: effectiveVehicles.first()
+
+    /**
+     * Returns a copy of [PricingSettings] with the telemetry parameters of [profile] applied.
+     */
+    fun withVehicleProfile(profile: VehicleProfile): PricingSettings = copy(
+        vehicleName = profile.name,
+        preferredFuelType = profile.preferredFuelType,
+        fuelEfficiencyUnit = profile.fuelEfficiencyUnit,
+        fuelPricePerLiter = profile.fuelPricePerLiter,
+        vehicleMileageKmPerL = profile.vehicleMileageKmPerL,
+        maintenanceMarkup = profile.maintenanceMarkup,
+        maintenanceMarkupMode = profile.maintenanceMarkupMode,
+        activeVehicleId = profile.id
+    )
+
     /**
      * Effective fuel cost rate per kilometer:
      * Cost per KM = Fuel Price per Liter / Fuel Efficiency in KM per Liter.

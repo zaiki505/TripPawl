@@ -31,9 +31,9 @@ class TripRepositoryImpl @Inject constructor(
         tripDao.observeTripsForRider(riderId).map { list -> list.map { it.toDomainModel() } }
 
     override fun observeDashboardMetrics(
-        monthStartMillis: Long,
-        monthEndMillis: Long
-    ): Flow<DashboardMetrics> = tripDao.observeDashboardMetrics(monthStartMillis, monthEndMillis)
+        startTimeMillis: Long,
+        endTimeMillis: Long
+    ): Flow<DashboardMetrics> = tripDao.observeDashboardMetrics(startTimeMillis, endTimeMillis)
 
     override suspend fun getTripById(tripId: Long): Trip? =
         tripDao.getTripWithRiderById(tripId)?.toDomainModel()

@@ -63,7 +63,9 @@ data class TripEntity(
     val recurrenceUnit: String = "NONE",
     val nextOccurrenceDate: Long? = null,
     @ColumnInfo(defaultValue = "NULL")
-    val recurrenceEndDate: Long? = null
+    val recurrenceEndDate: Long? = null,
+    @ColumnInfo(defaultValue = "''")
+    val vehicleName: String = ""
 ) {
     companion object {
         fun fromDomainModel(trip: Trip): TripEntity = TripEntity(
@@ -95,7 +97,8 @@ data class TripEntity(
             recurrenceInterval = trip.recurrenceInterval,
             recurrenceUnit = trip.recurrenceUnit.name,
             nextOccurrenceDate = trip.nextOccurrenceDate,
-            recurrenceEndDate = trip.recurrenceEndDate
+            recurrenceEndDate = trip.recurrenceEndDate,
+            vehicleName = trip.vehicleName
         )
     }
 }

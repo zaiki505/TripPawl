@@ -68,7 +68,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.zaiki.trippawl.domain.model.FuelEfficiencyUnit
 import com.zaiki.trippawl.domain.model.GroupedTrip
 import com.zaiki.trippawl.domain.model.Rider
 import com.zaiki.trippawl.tracking.CompletedDriveSummary
@@ -104,7 +103,7 @@ import java.util.Locale
  * - Immediate Low-Friction Drive Start Prompt: "Who is riding with you today?" with passenger checkboxes
  * - Drive Stop Automatic Cost & Split Summary with Trip Name + Toll & Parking Manual Overrides
  * - Metric Cards: Total Uncollected Debt, Total Fuel Spent (Month), Total Settled Payments
- * - Vehicle & Fuel Telemetry Snapshot
+ * - Waived Carpool Fares Summary Panel
  * - Recent Grouped Trips List (5 most recent grouped trips)
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -133,6 +132,7 @@ fun DashboardScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasForegroundLocation = checkForegroundLocationPermission(context)
                 hasBackgroundLocation = checkBackgroundLocationPermission(context)
+                viewModel.refreshAutoDriveMonitor()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -146,6 +146,7 @@ fun DashboardScreen(
         if (!hasBackgroundLocation) {
             openAppLocationPermissionSettings(context)
         }
+        viewModel.refreshAutoDriveMonitor()
         if (pendingStartDriveAfterBgPrompt) {
             pendingStartDriveAfterBgPrompt = false
             viewModel.startRealGpsDrive()
@@ -157,6 +158,7 @@ fun DashboardScreen(
     ) {
         hasForegroundLocation = checkForegroundLocationPermission(context)
         hasBackgroundLocation = checkBackgroundLocationPermission(context)
+        viewModel.refreshAutoDriveMonitor()
         if (hasForegroundLocation && !hasBackgroundLocation && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             showBackgroundPermissionDialog = true
         } else if (hasForegroundLocation) {
@@ -357,8 +359,21 @@ fun DashboardScreen(
                 }
             }
 
-            // 4. Secondary Bento Metric Cards Row: Fuel Spent (Month) & Settled Payments
+            // 3.5 Option Pill: Time Filter (Week | Month | All Time)
             item {
+                DashboardTimeFilterPill(
+                    selectedFilter = uiState.timeFilter,
+                    onFilterSelected = viewModel::onTimeFilterSelected,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
+            // 4. Secondary Bento Metric Cards Row: Fuel Spent & Settled Payments
+            item {
+                val timeFilterLabel = uiState.timeFilter.label
+                val isAllTime = uiState.timeFilter == DashboardTimeFilter.ALL_TIME
+                val periodQualifier = if (isAllTime) "all-time" else "this ${timeFilterLabel.lowercase()}"
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -373,7 +388,7 @@ fun DashboardScreen(
                         onClick = onViewAllTripsClick
                     ) {
                         Text(
-                            text = "FUEL SPENT (MONTH)",
+                            text = "FUEL SPENT (${timeFilterLabel.uppercase()})",
                             style = MaterialTheme.typography.labelSmall,
                             color = colors.tagWebText,
                             maxLines = 1,
@@ -390,7 +405,7 @@ fun DashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "${uiState.metrics.currentMonthTripCount} trip(s) this month",
+                            text = "${uiState.metrics.currentMonthTripCount} trip(s) $periodQualifier",
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textMuted,
                             maxLines = 1,
@@ -406,7 +421,7 @@ fun DashboardScreen(
                         onClick = onViewAllTripsClick
                     ) {
                         Text(
-                            text = "TOTAL COLLECTED",
+                            text = if (isAllTime) "TOTAL COLLECTED" else "COLLECTED (${timeFilterLabel.uppercase()})",
                             style = MaterialTheme.typography.labelSmall,
                             color = colors.available,
                             maxLines = 1,
@@ -423,7 +438,7 @@ fun DashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "${uiState.metrics.settledTripCount} paid share(s)",
+                            text = "${uiState.metrics.settledTripCount} paid share(s) $periodQualifier",
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textMuted,
                             maxLines = 1,
@@ -433,8 +448,11 @@ fun DashboardScreen(
                 }
             }
 
-            // 5. Waived Carpool Fares Summary Panel (Replaces Vehicle & Fuel Telemetry)
+            // 5. Waived Carpool Fares Summary Panel
             item {
+                val isAllTime = uiState.timeFilter == DashboardTimeFilter.ALL_TIME
+                val waivedPeriodQualifier = if (isAllTime) "" else " this ${uiState.timeFilter.label.lowercase()}"
+
                 ZaikiDetailPanel(
                     contentPadding = PaddingValues(horizontal = 15.dp, vertical = 12.dp)
                 ) {
@@ -445,7 +463,7 @@ fun DashboardScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "WAIVED CARPOOL FARES",
+                                text = if (isAllTime) "WAIVED CARPOOL FARES" else "WAIVED FARES (${uiState.timeFilter.label.uppercase()})",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = colors.highlight
                             )
@@ -458,7 +476,7 @@ fun DashboardScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Carpool shares forgiven for friends & colleagues (${uiState.metrics.waivedTripCount} waived)",
+                                text = "Carpool shares forgiven for friends & colleagues (${uiState.metrics.waivedTripCount} waived$waivedPeriodQualifier)",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = colors.textMuted
                             )
@@ -472,15 +490,16 @@ fun DashboardScreen(
                 }
             }
 
-            // 6. GPS Drive Logs (Section Header & List)
+            // 6. GPS Drive Logs (Section Header & List) — with extra top spacing from Waived Fares card
             item {
                 ZaikiSectionHeader(
                     kicker = "GPS DRIVE SENSORS",
                     title = "GPS Drive Logs",
+                    modifier = Modifier.padding(top = 12.dp),
                     trailingContent = {
                         if (uiState.recentDriveLogs.isNotEmpty()) {
                             ZaikiTagPill(
-                                text = "${uiState.recentDriveLogs.size} logs",
+                                text = "${uiState.recentDriveLogs.size} pending",
                                 category = ZaikiTagCategory.SYSTEM
                             )
                         }
@@ -494,7 +513,7 @@ fun DashboardScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         Text(
-                            text = "No GPS-recorded drives logged yet",
+                            text = "No unsaved GPS drives waiting for review",
                             style = MaterialTheme.typography.bodyMedium,
                             color = colors.textMuted
                         )
@@ -513,11 +532,12 @@ fun DashboardScreen(
                 }
             }
 
-            // 7. Recent Trips Section Header
+            // 7. Recent Trips Section Header — with extra top spacing from GPS Drive Logs above
             item {
                 ZaikiSectionHeader(
                     kicker = "RECENT ACTIVITY",
                     title = "Recent Trips",
+                    modifier = Modifier.padding(top = 12.dp),
                     trailingContent = {
                         if (uiState.recentGroupedTrips.isNotEmpty()) {
                             ZaikiSecondaryButton(
@@ -572,6 +592,7 @@ fun DashboardScreen(
             // 8. Zaiki Brand Easter Egg — Interactive CyberCat ("Pawl")
             item {
                 ZaikiDetailPanel(
+                    modifier = Modifier.padding(top = 8.dp),
                     contentPadding = PaddingValues(vertical = 14.dp, horizontal = 16.dp)
                 ) {
                     Box(
@@ -1145,6 +1166,7 @@ private fun DriveCompletedSplitSheet(
     var parkingInput by remember(summary) { mutableStateOf("") }
     var customRiderFareInput by remember(summary) { mutableStateOf("") }
     var isPaid by remember(summary) { mutableStateOf(false) }
+    var isWaived by remember(summary) { mutableStateOf(false) }
 
     val parsedDistance = distanceInput.toDoubleOrNull() ?: summary.distanceDrivenKm
     val parsedToll = tollInput.toDoubleOrNull() ?: 0.0
@@ -1314,6 +1336,46 @@ private fun DriveCompletedSplitSheet(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "PAYMENT STATUS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.textMuted
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ZaikiFilterChip(
+                            label = "Unpaid",
+                            selected = !isPaid && !isWaived,
+                            onClick = {
+                                isPaid = false
+                                isWaived = false
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ZaikiFilterChip(
+                            label = "Paid",
+                            selected = isPaid && !isWaived,
+                            onClick = {
+                                isPaid = true
+                                isWaived = false
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ZaikiFilterChip(
+                            label = "Waived",
+                            selected = isWaived,
+                            onClick = {
+                                isPaid = true
+                                isWaived = true
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 
@@ -1374,7 +1436,8 @@ private fun DriveCompletedSplitSheet(
                             parkingAmount = parsedParking,
                             selectedPassengerIds = selectedIds,
                             customPaymentPerRider = parsedCustomRiderFare,
-                            isPaid = isPaid
+                            isPaid = isPaid || isWaived,
+                            isWaived = isWaived
                         )
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -1446,8 +1509,19 @@ private fun RecentGroupedTripDashboardCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                val paxSubtitle = buildString {
+                    if (group.tripName.isNotBlank()) {
+                        append(group.passengerNamesSummary)
+                    } else {
+                        append("Pax: ${group.passengerNamesSummary}")
+                    }
+                    if (group.vehicleName.isNotBlank()) {
+                        append(" · ${group.vehicleName}")
+                    }
+                }
+
                 Text(
-                    text = group.passengerNamesSummary,
+                    text = paxSubtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textBody,
                     fontWeight = FontWeight.Medium,
@@ -1458,13 +1532,23 @@ private fun RecentGroupedTripDashboardCard(
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
-                    text = "${dateFormat.format(Date(group.tripDate))} · ${formatDecimal(group.distanceKm)} km" +
-                        if (group.passengerCount > 1) " · ${formatMoney(currencySymbol, group.sharePerPerson)}/pax" else "",
+                    text = "${dateFormat.format(Date(group.tripDate))} · ${formatDecimal(group.distanceKm)} km · ${formatMoney(currencySymbol, group.sharePerPerson)}/pax",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                if (group.tripNotes.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Note: ${group.tripNotes}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.highlight,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.padding(start = 10.dp))
@@ -1558,6 +1642,52 @@ private fun DriveLogDashboardCard(
                         contentDescription = "Delete Log",
                         tint = colors.textMuted,
                         modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DashboardTimeFilterPill(
+    selectedFilter: DashboardTimeFilter,
+    onFilterSelected: (DashboardTimeFilter) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = ZaikiThemeTokens.colors
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(ZaikiRadii.Pill)
+                .background(colors.surfaceChip)
+                .border(BorderStroke(1.dp, colors.borderChip), ZaikiRadii.Pill)
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            DashboardTimeFilter.entries.forEach { filter ->
+                val isSelected = filter == selectedFilter
+                val bg = if (isSelected) colors.highlight else Color.Transparent
+                val textColor = if (isSelected) Color.White else colors.textMuted
+                val fontW = if (isSelected) FontWeight.Bold else FontWeight.Medium
+
+                Box(
+                    modifier = Modifier
+                        .zaikiSquishClickable(onClick = { onFilterSelected(filter) })
+                        .clip(ZaikiRadii.Pill)
+                        .background(bg)
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = filter.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = textColor,
+                        fontWeight = fontW
                     )
                 }
             }

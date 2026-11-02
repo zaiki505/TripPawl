@@ -80,7 +80,8 @@ data class Trip(
     val recurrenceInterval: Int = 1,
     val recurrenceUnit: RecurrenceUnit = RecurrenceUnit.NONE,
     val nextOccurrenceDate: Long? = null,
-    val recurrenceEndDate: Long? = null
+    val recurrenceEndDate: Long? = null,
+    val vehicleName: String = ""
 ) {
     val recurrenceSummaryLabel: String?
         get() {
@@ -126,10 +127,11 @@ data class GroupedTrip(
     val recurrenceInterval: Int = 1,
     val recurrenceUnit: RecurrenceUnit = RecurrenceUnit.NONE,
     val nextOccurrenceDate: Long? = null,
-    val recurrenceEndDate: Long? = null
+    val recurrenceEndDate: Long? = null,
+    val vehicleName: String = ""
 ) {
     val passengerCount: Int
-        get() = maxOf(passengerShares.size, passengerShares.firstOrNull()?.passengerCount ?: 1)
+        get() = passengerShares.size.coerceAtLeast(1)
 
     val passengerNames: List<String>
         get() = passengerShares.map { it.riderName }.distinct()
@@ -220,7 +222,8 @@ fun List<Trip>.groupByTripSession(): List<GroupedTrip> {
                 recurrenceInterval = first.recurrenceInterval,
                 recurrenceUnit = first.recurrenceUnit,
                 nextOccurrenceDate = first.nextOccurrenceDate,
-                recurrenceEndDate = first.recurrenceEndDate
+                recurrenceEndDate = first.recurrenceEndDate,
+                vehicleName = first.vehicleName
             )
         }
         .sortedByDescending { it.tripDate }

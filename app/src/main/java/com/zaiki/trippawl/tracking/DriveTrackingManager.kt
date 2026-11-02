@@ -41,6 +41,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -106,8 +107,9 @@ class DriveTrackingManager @Inject constructor(
     private var lastIdleMonitorLocation: Location? = null
     private var consecutiveSpeedThresholdHits: Int = 0
     private var lastDriveStopTimeMillis: Long = 0L
-    private var lastAutoReminderMillis: Long = 0L
     private var passiveSpeedListenerRegistered: Boolean = false
+    private var lastBroadcastConnectedAddress: String? = null
+    private var lastBroadcastConnectedName: String? = null
 
     private val _state = MutableStateFlow(DriveTrackingState())
     val state: StateFlow<DriveTrackingState> = _state.asStateFlow()
@@ -129,22 +131,35 @@ class DriveTrackingManager @Inject constructor(
     init {
         ensureAlertNotificationChannel()
         ensureSpeedThresholdMonitorRunning()
-        refreshBluetoothConnectionStateAsync()
+        observeSettingsAndRefreshBluetoothState()
+        scope.launch {
+            driveLogDao.deleteShortLogs()
+        }
     }
 
-    private fun refreshBluetoothConnectionStateAsync() {
+    private fun observeSettingsAndRefreshBluetoothState() {
         scope.launch {
-            val settings = runCatching { settingsRepository.settingsFlow.first() }.getOrNull() ?: return@launch
-            resolveConnectedTriggerBluetoothDevice(settings)
+            settingsRepository.settingsFlow.collectLatest { settings ->
+                val connectedLabel = resolveConnectedTriggerBluetoothDevice(settings)
+                if (connectedLabel != null && settings.autoDetectDriveBluetooth && !_state.value.isDriveActive) {
+                    ensureSpeedThresholdMonitorRunning()
+                }
+            }
         }
     }
 
     /**
-     * Called when [CarBluetoothReceiver] detects `ACTION_ACL_CONNECTED` for a matching trigger Bluetooth device.
-     * Arms the auto-trigger and starts the drive ONLY if the speed threshold is also already exceeded;
-     * otherwise waits for speed to exceed `autoDetectSpeedThresholdKmh`.
+     * Called when [CarBluetoothReceiver] detects a connection for a matching trigger Bluetooth device.
+     * Arms the foreground GPS speed monitor and starts the drive immediately if the speed threshold
+     * is already exceeded; otherwise starts the drive the moment speed exceeds `autoDetectSpeedThresholdKmh`.
      */
-    fun onCarBluetoothConnected(deviceLabel: String) {
+    fun onCarBluetoothConnected(
+        deviceLabel: String,
+        deviceAddress: String? = null,
+        deviceName: String? = null
+    ) {
+        lastBroadcastConnectedAddress = deviceAddress
+        lastBroadcastConnectedName = deviceName ?: deviceLabel
         _state.update {
             it.copy(
                 isCarBluetoothConnected = true,
@@ -158,7 +173,7 @@ class DriveTrackingManager @Inject constructor(
             if (!settings.autoDetectDriveBluetooth) return@launch
             val threshold = settings.autoDetectSpeedThresholdKmh
             val currentSpeed = _state.value.currentSpeedKmh
-            val outsideCooldown = (System.currentTimeMillis() - lastDriveStopTimeMillis) > 45_000L
+            val outsideCooldown = (System.currentTimeMillis() - lastDriveStopTimeMillis) > 10_000L
 
             if (!_state.value.isDriveActive && outsideCooldown && threshold > 0.0 && currentSpeed >= threshold) {
                 startDrive(
@@ -166,6 +181,16 @@ class DriveTrackingManager @Inject constructor(
                     simulated = false,
                     showPromptImmediately = true
                 )
+            } else if (!_state.value.isDriveActive) {
+                // Start foreground service in standby mode so Android delivers unthrottled 1Hz GPS updates
+                // while waiting for the vehicle to exceed the speed threshold.
+                runCatching {
+                    val armIntent = Intent(appContext, DriveTrackingForegroundService::class.java).apply {
+                        action = DriveTrackingForegroundService.ACTION_ARM_BT_SPEED_MONITOR
+                        putExtra(DriveTrackingForegroundService.EXTRA_TRIGGER_SOURCE, deviceLabel)
+                    }
+                    ContextCompat.startForegroundService(appContext, armIntent)
+                }
             }
         }
     }
@@ -174,6 +199,8 @@ class DriveTrackingManager @Inject constructor(
      * Called when [CarBluetoothReceiver] detects `ACTION_ACL_DISCONNECTED` for a matching Bluetooth device.
      */
     fun onCarBluetoothDisconnected() {
+        lastBroadcastConnectedAddress = null
+        lastBroadcastConnectedName = null
         _state.update {
             it.copy(
                 isCarBluetoothConnected = false,
@@ -182,19 +209,45 @@ class DriveTrackingManager @Inject constructor(
         }
         if (_state.value.isDriveActive) {
             stopDrive()
+        } else {
+            runCatching {
+                val stopIntent = Intent(appContext, DriveTrackingForegroundService::class.java).apply {
+                    action = DriveTrackingForegroundService.ACTION_STOP_DRIVE
+                }
+                appContext.stopService(stopIntent)
+            }
         }
     }
 
     /**
      * Checks whether the phone is currently connected to a qualifying trigger Bluetooth device
-     * (either from [CarBluetoothReceiver] state or by inspecting currently connected bonded devices).
+     * (by inspecting currently connected bonded devices or recent broadcast state validated against [settings]).
      */
     @SuppressLint("MissingPermission")
     private fun resolveConnectedTriggerBluetoothDevice(settings: PricingSettings): String? {
-        if (!settings.autoDetectDriveBluetooth) return null
-        val currentState = _state.value
-        if (currentState.isCarBluetoothConnected && !currentState.connectedBluetoothDeviceLabel.isNullOrBlank()) {
-            return currentState.connectedBluetoothDeviceLabel
+        if (!settings.autoDetectDriveBluetooth) {
+            _state.update {
+                it.copy(
+                    isCarBluetoothConnected = false,
+                    connectedBluetoothDeviceLabel = null
+                )
+            }
+            return null
+        }
+
+        val hasExplicitSelection =
+            settings.triggerBluetoothAddresses.isNotEmpty() || settings.triggerBluetoothNames.isNotEmpty()
+
+        fun deviceMatchesSettings(address: String?, name: String?, majorClass: Int?): Boolean {
+            return if (hasExplicitSelection) {
+                val matchesAddress = !address.isNullOrBlank() &&
+                    settings.triggerBluetoothAddresses.any { it.equals(address, ignoreCase = true) }
+                val matchesName = !name.isNullOrBlank() &&
+                    settings.triggerBluetoothNames.any { it.equals(name, ignoreCase = true) }
+                matchesAddress || matchesName
+            } else {
+                majorClass == BluetoothClass.Device.Major.AUDIO_VIDEO || majorClass == null
+            }
         }
 
         val hasBtConnectPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -205,52 +258,60 @@ class DriveTrackingManager @Inject constructor(
         } else {
             true
         }
-        if (!hasBtConnectPerm) return null
 
-        val btManager = appContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
-        val adapter = btManager?.adapter ?: return null
-        if (!adapter.isEnabled) return null
+        if (hasBtConnectPerm) {
+            val btManager = appContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            val adapter = btManager?.adapter
+            if (adapter != null && adapter.isEnabled) {
+                val bonded = runCatching { adapter.bondedDevices }.getOrNull().orEmpty()
+                for (device in bonded) {
+                    val address = runCatching { device.address }.getOrNull()
+                    val name = runCatching { device.name }.getOrNull()
+                    val majorClass = runCatching { device.bluetoothClass?.majorDeviceClass }.getOrNull()
 
-        val bonded = runCatching { adapter.bondedDevices }.getOrNull().orEmpty()
-        val hasExplicitSelection =
-            settings.triggerBluetoothAddresses.isNotEmpty() || settings.triggerBluetoothNames.isNotEmpty()
+                    if (!deviceMatchesSettings(address, name, majorClass)) continue
 
-        for (device in bonded) {
-            val address = runCatching { device.address }.getOrNull()
-            val name = runCatching { device.name }.getOrNull()
+                    val isConnectedAcl = runCatching {
+                        val method = device.javaClass.getMethod("isConnected")
+                        method.invoke(device) as? Boolean ?: false
+                    }.getOrDefault(false)
 
-            val matchesSelection = if (hasExplicitSelection) {
-                val matchesAddress = address != null &&
-                    settings.triggerBluetoothAddresses.any { it.equals(address, ignoreCase = true) }
-                val matchesName = !name.isNullOrBlank() &&
-                    settings.triggerBluetoothNames.any { it.equals(name, ignoreCase = true) }
-                matchesAddress || matchesName
-            } else {
-                runCatching {
-                    val majorClass = device.bluetoothClass?.majorDeviceClass
-                    majorClass == BluetoothClass.Device.Major.AUDIO_VIDEO || majorClass == null
-                }.getOrDefault(false)
-            }
-
-            if (!matchesSelection) continue
-
-            val isConnectedAcl = runCatching {
-                val method = device.javaClass.getMethod("isConnected")
-                method.invoke(device) as? Boolean ?: false
-            }.getOrDefault(false)
-
-            if (isConnectedAcl) {
-                val label = name?.takeIf { it.isNotBlank() } ?: address ?: "Car Bluetooth"
-                _state.update {
-                    it.copy(
-                        isCarBluetoothConnected = true,
-                        connectedBluetoothDeviceLabel = label
-                    )
+                    if (isConnectedAcl) {
+                        val label = name?.takeIf { it.isNotBlank() } ?: address ?: "Car Bluetooth"
+                        _state.update {
+                            it.copy(
+                                isCarBluetoothConnected = true,
+                                connectedBluetoothDeviceLabel = label
+                            )
+                        }
+                        return label
+                    }
                 }
-                return label
             }
         }
 
+        // Also check broadcast-reported connection if it still matches current settings
+        val broadcastAddr = lastBroadcastConnectedAddress
+        val broadcastName = lastBroadcastConnectedName
+        if ((!broadcastAddr.isNullOrBlank() || !broadcastName.isNullOrBlank()) &&
+            deviceMatchesSettings(broadcastAddr, broadcastName, BluetoothClass.Device.Major.AUDIO_VIDEO)
+        ) {
+            val label = broadcastName?.takeIf { it.isNotBlank() } ?: broadcastAddr ?: "Car Bluetooth"
+            _state.update {
+                it.copy(
+                    isCarBluetoothConnected = true,
+                    connectedBluetoothDeviceLabel = label
+                )
+            }
+            return label
+        }
+
+        _state.update {
+            it.copy(
+                isCarBluetoothConnected = false,
+                connectedBluetoothDeviceLabel = null
+            )
+        }
         return null
     }
 
@@ -293,8 +354,8 @@ class DriveTrackingManager @Inject constructor(
             if (lm.allProviders.contains(fusedProviderName)) {
                 lm.requestLocationUpdates(
                     fusedProviderName,
-                    2_500L,
-                    2f,
+                    1_000L,
+                    0f,
                     passiveSpeedLocationListener,
                     mainLooper
                 )
@@ -306,8 +367,8 @@ class DriveTrackingManager @Inject constructor(
             if (hasFine && lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 lm.requestLocationUpdates(
                     LocationManager.GPS_PROVIDER,
-                    2_500L,
-                    2f,
+                    1_000L,
+                    0f,
                     passiveSpeedLocationListener,
                     mainLooper
                 )
@@ -319,7 +380,7 @@ class DriveTrackingManager @Inject constructor(
             if (lm.allProviders.contains(LocationManager.PASSIVE_PROVIDER)) {
                 lm.requestLocationUpdates(
                     LocationManager.PASSIVE_PROVIDER,
-                    2_000L,
+                    1_000L,
                     0f,
                     passiveSpeedLocationListener,
                     mainLooper
@@ -428,7 +489,7 @@ class DriveTrackingManager @Inject constructor(
     /**
      * Called by [DriveTrackingForegroundService] or the passive speed monitor when a real GPS fix arrives.
      * Supports BOTH:
-     * 1. Combined Bluetooth + Speed threshold auto-start detection when idle (triggers ONLY when connected
+     * 1. Combined Bluetooth + Speed threshold auto-start detection when idle (triggers immediately when connected
      *    to the configured Bluetooth device AND exceeding `autoDetectSpeedThresholdKmh`).
      * 2. Active anchor-point distance accumulation during a drive.
      */
@@ -445,8 +506,8 @@ class DriveTrackingManager @Inject constructor(
                 if (location.time > 0L && now - location.time > 15_000L) {
                     return@launch
                 }
-                // Ignore inaccurate fixes (> 40m) for speed auto-detection
-                if (location.hasAccuracy() && location.accuracy > 40f) {
+                // Ignore inaccurate fixes (> 45m) for speed auto-detection
+                if (location.hasAccuracy() && location.accuracy > 45f) {
                     return@launch
                 }
 
@@ -455,13 +516,13 @@ class DriveTrackingManager @Inject constructor(
                 if (prevIdle != null) {
                     val dtSec = ((location.time - prevIdle.time).coerceAtLeast(500L)) / 1000.0
                     val distMeters = prevIdle.distanceTo(location)
-                    if (dtSec in 0.8..30.0 && distMeters in 4.0f..1000.0f) {
+                    if (dtSec in 0.4..30.0 && distMeters in 1.5f..1000.0f) {
                         derivedIdleSpeedKmh = ((distMeters / dtSec) * 3.6).coerceIn(0.0, 220.0)
                     }
                 }
                 lastIdleMonitorLocation = location
 
-                val effectiveIdleSpeedKmh = if (rawSpeedKmh > 1.0) rawSpeedKmh else derivedIdleSpeedKmh
+                val effectiveIdleSpeedKmh = maxOf(rawSpeedKmh, derivedIdleSpeedKmh)
                 val connectedBtLabel = resolveConnectedTriggerBluetoothDevice(settings)
 
                 _state.update {
@@ -473,19 +534,18 @@ class DriveTrackingManager @Inject constructor(
                     )
                 }
 
-                // Respect a 45-second cooldown after stopping a drive so stopping while moving doesn't immediately re-trigger
-                val outsideCooldown = (now - lastDriveStopTimeMillis) > 45_000L
+                // Respect a 10-second cooldown after manually stopping a drive
+                val outsideCooldown = (now - lastDriveStopTimeMillis) > 10_000L
                 val threshold = settings.autoDetectSpeedThresholdKmh
 
-                // Auto-trigger ONLY when BOTH conditions are met:
+                // Auto-trigger immediately when BOTH conditions are met:
                 // (A) Connected to the set Bluetooth device, AND (B) Speed >= threshold
                 val isBluetoothConditionMet = settings.autoDetectDriveBluetooth && connectedBtLabel != null
                 val isSpeedConditionMet = threshold > 0.0 && effectiveIdleSpeedKmh >= threshold
 
                 if (outsideCooldown && isBluetoothConditionMet && isSpeedConditionMet) {
                     consecutiveSpeedThresholdHits++
-                    // Trigger immediately if hardware Doppler speed is confident, or after 2 consecutive derived fixes
-                    if (rawSpeedKmh >= threshold || consecutiveSpeedThresholdHits >= 2) {
+                    if (consecutiveSpeedThresholdHits >= 1) {
                         consecutiveSpeedThresholdHits = 0
                         startDrive(
                             triggerSource = "Auto: BT ($connectedBtLabel) + ${effectiveIdleSpeedKmh.toInt()} km/h",
@@ -627,23 +687,21 @@ class DriveTrackingManager @Inject constructor(
         consecutiveSpeedThresholdHits = 0
         lastDriveStopTimeMillis = System.currentTimeMillis()
 
-        runCatching {
-            val stopIntent = Intent(appContext, DriveTrackingForegroundService::class.java).apply {
-                action = DriveTrackingForegroundService.ACTION_STOP_DRIVE
-            }
-            appContext.stopService(stopIntent)
-        }
-
         val effectiveDistance = current.distanceDrivenKm
-        val summary = CompletedDriveSummary(
-            startTimeMillis = current.startTimeMillis,
-            arrivalTimeMillis = lastDriveStopTimeMillis,
-            distanceDrivenKm = effectiveDistance,
-            gpsPointsCount = current.gpsPointsCount,
-            selectedPassengerIds = current.selectedPassengerIds,
-            triggerSource = current.triggerSource,
-            logId = 0L
-        )
+        val shouldLogDrive = effectiveDistance >= MIN_DRIVE_LOG_DISTANCE_KM
+        val summary = if (shouldLogDrive) {
+            CompletedDriveSummary(
+                startTimeMillis = current.startTimeMillis,
+                arrivalTimeMillis = lastDriveStopTimeMillis,
+                distanceDrivenKm = effectiveDistance,
+                gpsPointsCount = current.gpsPointsCount,
+                selectedPassengerIds = current.selectedPassengerIds,
+                triggerSource = current.triggerSource,
+                logId = 0L
+            )
+        } else {
+            null
+        }
 
         _state.value = DriveTrackingState(
             isDriveActive = false,
@@ -654,31 +712,40 @@ class DriveTrackingManager @Inject constructor(
             completedDriveSummary = summary
         )
 
-        // Persist GPS drive log to database so driver can review/re-log from Dashboard at any time
-        val logEntity = DriveLogEntity(
-            startTimeMillis = current.startTimeMillis,
-            endTimeMillis = lastDriveStopTimeMillis,
-            distanceKm = effectiveDistance,
-            gpsPointsCount = current.gpsPointsCount,
-            triggerSource = current.triggerSource,
-            passengerIdsCsv = current.selectedPassengerIds.joinToString(","),
-            status = DriveLogStatus.PENDING.name,
-            savedTripGroupId = ""
-        )
-        scope.launch {
-            val insertedLogId = driveLogDao.insertLog(logEntity)
-            _state.update { state ->
-                val activeSummary = state.completedDriveSummary
-                if (activeSummary != null && activeSummary.startTimeMillis == current.startTimeMillis) {
-                    state.copy(completedDriveSummary = activeSummary.copy(logId = insertedLogId))
-                } else {
-                    state
-                }
+        runCatching {
+            val stopIntent = Intent(appContext, DriveTrackingForegroundService::class.java).apply {
+                action = DriveTrackingForegroundService.ACTION_STOP_DRIVE
             }
+            appContext.stopService(stopIntent)
         }
 
-        // Post trip-ended system notification with distance and estimated split
-        postTripCompletedNotification(summary)
+        // Only persist GPS drive log and notify when the drive is at least 1.0 km
+        if (shouldLogDrive && summary != null) {
+            val logEntity = DriveLogEntity(
+                startTimeMillis = current.startTimeMillis,
+                endTimeMillis = lastDriveStopTimeMillis,
+                distanceKm = effectiveDistance,
+                gpsPointsCount = current.gpsPointsCount,
+                triggerSource = current.triggerSource,
+                passengerIdsCsv = current.selectedPassengerIds.joinToString(","),
+                status = DriveLogStatus.PENDING.name,
+                savedTripGroupId = ""
+            )
+            scope.launch {
+                val insertedLogId = driveLogDao.insertLog(logEntity)
+                _state.update { state ->
+                    val activeSummary = state.completedDriveSummary
+                    if (activeSummary != null && activeSummary.startTimeMillis == current.startTimeMillis) {
+                        state.copy(completedDriveSummary = activeSummary.copy(logId = insertedLogId))
+                    } else {
+                        state
+                    }
+                }
+            }
+
+            // Post trip-ended system notification with distance and estimated split
+            postTripCompletedNotification(summary)
+        }
 
         // Ensure passive speed monitor continues listening for future drives
         ensureSpeedThresholdMonitorRunning()
@@ -725,7 +792,8 @@ class DriveTrackingManager @Inject constructor(
 
     /**
      * Finalizes a completed GPS drive, applying any manual Toll, Parking, or Custom Rider Payment overrides,
-     * and charging each selected passenger their share in the ledger.
+     * charging each selected passenger their share in the ledger, and removing the saved drive log from
+     * the pending GPS Drive Logs list.
      */
     fun saveCompletedDriveToLedger(
         tripName: String = "",
@@ -735,6 +803,7 @@ class DriveTrackingManager @Inject constructor(
         selectedPassengerIds: Set<Long>,
         customPaymentPerRider: Double? = null,
         isPaid: Boolean,
+        isWaived: Boolean = false,
         onSaved: () -> Unit
     ) {
         val summary = _state.value.completedDriveSummary ?: return
@@ -756,7 +825,8 @@ class DriveTrackingManager @Inject constructor(
             )
 
             val effectiveRiderFare = customPaymentPerRider?.takeIf { it >= 0.0 } ?: calc.riderShare
-            val settledDate = if (isPaid) summary.arrivalTimeMillis else null
+            val effectiveIsPaid = isPaid || isWaived
+            val settledDate = if (effectiveIsPaid) summary.arrivalTimeMillis else null
             val sharedGroupId = "grp_${summary.startTimeMillis}_${System.nanoTime()}"
             val cleanTripName = tripName.trim()
 
@@ -772,7 +842,8 @@ class DriveTrackingManager @Inject constructor(
                     tollAmount = calc.effectiveTollAmount,
                     parkingAmount = calc.parkingAmount,
                     calculatedFare = effectiveRiderFare,
-                    isPaid = isPaid,
+                    isPaid = effectiveIsPaid,
+                    isWaived = isWaived,
                     tripDate = summary.startTimeMillis,
                     arrivalDate = summary.arrivalTimeMillis,
                     settledDate = settledDate,
@@ -781,13 +852,14 @@ class DriveTrackingManager @Inject constructor(
                     maintenanceAmount = calc.maintenanceSurcharge,
                     totalTripCost = calc.totalTripFare,
                     gpsPointsCount = summary.gpsPointsCount,
-                    isAutoTracked = true
+                    isAutoTracked = true,
+                    vehicleName = settings.vehicleName
                 )
                 tripRepository.insertTrip(trip)
             }
 
             if (summary.logId != 0L) {
-                driveLogDao.updateLogStatus(summary.logId, DriveLogStatus.SAVED.name, sharedGroupId)
+                driveLogDao.deleteLog(summary.logId)
             }
 
             backupRestoreManager.triggerAutoBackupIfEnabled()
@@ -879,7 +951,7 @@ class DriveTrackingManager @Inject constructor(
 
     /**
      * Automatically checks if the owner/driver has pending uncollected payments and posts a polite
-     * driver reminder notification (throttled to at most once every 6 hours so it is never spammy).
+     * driver reminder notification according to the configured reminder interval.
      */
     suspend fun checkAndPostAutomaticDriverCollectionReminder() {
         val settings = settingsRepository.settingsFlow.first()
@@ -907,7 +979,7 @@ class DriveTrackingManager @Inject constructor(
         ensureAlertNotificationChannel()
         val settings = settingsRepository.settingsFlow.first()
         val allTrips = tripRepository.observeAllTrips().first()
-        val unpaidTrips = allTrips.filter { !it.isPaid }
+        val unpaidTrips = allTrips.filter { !it.isPaid && !it.isWaived }
         if (unpaidTrips.isEmpty()) return 0
 
         val unpaidGroups = unpaidTrips.groupByTripSession()
@@ -967,7 +1039,7 @@ class DriveTrackingManager @Inject constructor(
      * reminding the owner/driver that payment for this trip still needs to be collected.
      */
     suspend fun sendUnpaidAlertForGroup(group: GroupedTrip): Boolean {
-        val unpaidShares = group.passengerShares.filter { !it.isPaid }
+        val unpaidShares = group.passengerShares.filter { !it.isPaid && !it.isWaived }
         if (unpaidShares.isEmpty()) return false
 
         ensureAlertNotificationChannel()
@@ -1013,6 +1085,7 @@ class DriveTrackingManager @Inject constructor(
     }
 
     companion object {
+        const val MIN_DRIVE_LOG_DISTANCE_KM = 1.0
         const val CHANNEL_ID_DRIVE_ALERTS = "trippawl_drive_alerts_high"
         const val NOTIFICATION_ID_DRIVE_COMPLETED = 4202
         const val NOTIFICATION_ID_UNPAID_ALERT = 4203

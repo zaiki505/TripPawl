@@ -22,13 +22,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
 
+enum class DashboardTimeFilter(val label: String) {
+    WEEK("Week"),
+    MONTH("Month"),
+    ALL_TIME("All Time")
+}
+
 data class DashboardUiState(
     val metrics: DashboardMetrics = DashboardMetrics(),
+    val timeFilter: DashboardTimeFilter = DashboardTimeFilter.MONTH,
     val recentTrips: List<Trip> = emptyList(),
     val recentGroupedTrips: List<GroupedTrip> = emptyList(),
     val recentTripNames: List<String> = emptyList(),
@@ -51,8 +61,20 @@ class DashboardViewModel @Inject constructor(
     private val driveLogDao: DriveLogDao
 ) : ViewModel() {
 
-    private val monthBounds: Pair<Long, Long> = computeCurrentMonthBounds()
+    private val selectedTimeFilterFlow = MutableStateFlow(DashboardTimeFilter.MONTH)
     private val statusBannerFlow = MutableStateFlow<String?>(null)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val metricsWithFilterFlow = selectedTimeFilterFlow.flatMapLatest { filter ->
+        val bounds = when (filter) {
+            DashboardTimeFilter.WEEK -> computeCurrentWeekBounds()
+            DashboardTimeFilter.MONTH -> computeCurrentMonthBounds()
+            DashboardTimeFilter.ALL_TIME -> 0L to Long.MAX_VALUE
+        }
+        tripRepository.observeDashboardMetrics(bounds.first, bounds.second).map { metrics ->
+            metrics to filter
+        }
+    }
 
     init {
         viewModelScope.launch {
@@ -65,13 +87,22 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    fun refreshAutoDriveMonitor() {
+        driveTrackingManager.ensureSpeedThresholdMonitorRunning()
+    }
+
+    fun onTimeFilterSelected(filter: DashboardTimeFilter) {
+        selectedTimeFilterFlow.value = filter
+    }
+
     val uiState: StateFlow<DashboardUiState> = combine(
-        tripRepository.observeDashboardMetrics(monthBounds.first, monthBounds.second),
+        metricsWithFilterFlow,
         tripRepository.observeRecentTrips(limit = 25),
         riderRepository.observeAllRiders(),
         settingsRepository.settingsFlow,
         driveTrackingManager.state
-    ) { metrics, recentTrips, riders, settings, driveState ->
+    ) { metricsAndFilter, recentTrips, riders, settings, driveState ->
+        val (metrics, timeFilter) = metricsAndFilter
         val activePassengerCount = driveState.selectedPassengerIds.size.coerceAtLeast(1)
         val liveFare = calculateTripFareUseCase(
             distanceKm = driveState.distanceDrivenKm,
@@ -89,6 +120,7 @@ class DashboardViewModel @Inject constructor(
 
         DashboardUiState(
             metrics = metrics,
+            timeFilter = timeFilter,
             recentTrips = recentTrips,
             recentGroupedTrips = groupedRecent,
             recentTripNames = lastThreeTripNames,
@@ -173,7 +205,8 @@ class DashboardViewModel @Inject constructor(
         parkingAmount: Double,
         selectedPassengerIds: Set<Long>,
         customPaymentPerRider: Double? = null,
-        isPaid: Boolean
+        isPaid: Boolean,
+        isWaived: Boolean = false
     ) {
         driveTrackingManager.saveCompletedDriveToLedger(
             tripName = tripName,
@@ -183,6 +216,7 @@ class DashboardViewModel @Inject constructor(
             selectedPassengerIds = selectedPassengerIds,
             customPaymentPerRider = customPaymentPerRider,
             isPaid = isPaid,
+            isWaived = isWaived,
             onSaved = {}
         )
     }
@@ -251,6 +285,26 @@ class DashboardViewModel @Inject constructor(
             val currentDark = uiState.value.settings.isDarkTheme
             settingsRepository.toggleDarkTheme(!currentDark)
         }
+    }
+
+    private fun computeCurrentWeekBounds(): Pair<Long, Long> {
+        val cal = Calendar.getInstance()
+        val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
+        val daysFromMonday = if (dayOfWeek == Calendar.SUNDAY) 6 else dayOfWeek - Calendar.MONDAY
+        cal.add(Calendar.DAY_OF_MONTH, -daysFromMonday)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val start = cal.timeInMillis
+
+        cal.add(Calendar.DAY_OF_MONTH, 6)
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.MILLISECOND, 999)
+        val end = cal.timeInMillis
+        return start to end
     }
 
     private fun computeCurrentMonthBounds(): Pair<Long, Long> {

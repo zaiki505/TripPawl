@@ -17,8 +17,9 @@ import com.zaiki.trippawl.domain.model.FuelEfficiencyUnit
 import com.zaiki.trippawl.domain.model.MaintenanceMarkupMode
 import com.zaiki.trippawl.domain.model.PricingSettings
 import com.zaiki.trippawl.domain.model.UnpaidReminderInterval
-import com.zaiki.trippawl.tracking.DriveTrackingManager
+import com.zaiki.trippawl.domain.model.VehicleProfile
 import com.zaiki.trippawl.domain.repository.SettingsRepository
+import com.zaiki.trippawl.tracking.DriveTrackingManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +52,8 @@ data class SettingsFormUiState(
     val vehicleMileageInput: String = PricingSettings.DEFAULT_VEHICLE_MILEAGE_KM_PER_L.toString(),
     val maintenanceMarkupInput: String = PricingSettings.DEFAULT_MAINTENANCE_MARKUP.toString(),
     val maintenanceMarkupMode: MaintenanceMarkupMode = MaintenanceMarkupMode.PER_KM,
+    val savedVehicles: List<VehicleProfile> = listOf(VehicleProfile()),
+    val activeVehicleId: String = VehicleProfile.DEFAULT_VEHICLE_ID,
     val autoDetectDriveBluetooth: Boolean = true,
     val triggerBluetoothAddresses: Set<String> = emptySet(),
     val triggerBluetoothNames: Set<String> = emptySet(),
@@ -103,6 +106,31 @@ data class SettingsFormUiState(
             val kmPerL = effectiveMileageKmPerL
             return if (kmPerL > 0.0 && fuel >= 0.0) fuel / kmPerL else 0.0
         }
+
+    fun currentActiveProfileFromFields(): VehicleProfile {
+        val id = activeVehicleId.ifBlank { VehicleProfile.DEFAULT_VEHICLE_ID }
+        return VehicleProfile(
+            id = id,
+            name = vehicleNameInput.trim().ifEmpty { PricingSettings.DEFAULT_VEHICLE_NAME },
+            preferredFuelType = preferredFuelType.trim().ifEmpty { PricingSettings.DEFAULT_PREFERRED_FUEL_TYPE },
+            fuelEfficiencyUnit = fuelEfficiencyUnit,
+            fuelPricePerLiter = (fuelPriceInput.toDoubleOrNull() ?: PricingSettings.DEFAULT_FUEL_PRICE_PER_LITER).coerceAtLeast(0.0),
+            vehicleMileageKmPerL = effectiveMileageKmPerL.takeIf { it > 0.0 } ?: PricingSettings.DEFAULT_VEHICLE_MILEAGE_KM_PER_L,
+            maintenanceMarkup = (maintenanceMarkupInput.toDoubleOrNull() ?: PricingSettings.DEFAULT_MAINTENANCE_MARKUP).coerceAtLeast(0.0),
+            maintenanceMarkupMode = maintenanceMarkupMode
+        )
+    }
+
+    fun updatedSavedVehiclesWithCurrentFields(): List<VehicleProfile> {
+        val currentProfile = currentActiveProfileFromFields()
+        if (savedVehicles.isEmpty()) return listOf(currentProfile)
+        val exists = savedVehicles.any { it.id == currentProfile.id }
+        return if (exists) {
+            savedVehicles.map { if (it.id == currentProfile.id) currentProfile else it }
+        } else {
+            savedVehicles + currentProfile
+        }
+    }
 }
 
 @HiltViewModel
@@ -147,6 +175,101 @@ class SettingsViewModel @Inject constructor(
 
     init {
         refreshLocalBackups()
+    }
+
+    fun selectVehicleProfile(vehicleId: String) {
+        val current = localEdits.value
+        if (current.activeVehicleId == vehicleId) return
+        val syncedVehicles = current.updatedSavedVehiclesWithCurrentFields()
+        val target = syncedVehicles.firstOrNull { it.id == vehicleId } ?: return
+        val displayedMileage = when (target.fuelEfficiencyUnit) {
+            FuelEfficiencyUnit.KM_PER_LITER -> target.vehicleMileageKmPerL.toString()
+            FuelEfficiencyUnit.LITERS_PER_100KM -> target.litersPer100Km.toString()
+        }
+        val nextState = current.copy(
+            activeVehicleId = target.id,
+            savedVehicles = syncedVehicles,
+            vehicleNameInput = target.name,
+            preferredFuelType = target.preferredFuelType,
+            fuelEfficiencyUnit = target.fuelEfficiencyUnit,
+            fuelPriceInput = target.fuelPricePerLiter.toString(),
+            vehicleMileageInput = displayedMileage,
+            maintenanceMarkupInput = target.maintenanceMarkup.toString(),
+            maintenanceMarkupMode = target.maintenanceMarkupMode,
+            statusMessage = "Switched active car profile to '${target.name}'.",
+            isError = false
+        )
+        localEdits.value = nextState
+        viewModelScope.launch {
+            buildPricingSettingsOrNull(nextState)?.let { settingsRepository.updateSettings(it) }
+        }
+    }
+
+    fun addNewVehicleProfile() {
+        val current = localEdits.value
+        val syncedVehicles = current.updatedSavedVehiclesWithCurrentFields()
+        val nextIndex = syncedVehicles.size + 1
+        val newProfile = VehicleProfile(
+            id = "car_${System.currentTimeMillis()}",
+            name = "Car $nextIndex",
+            preferredFuelType = current.preferredFuelType.ifBlank { PricingSettings.DEFAULT_PREFERRED_FUEL_TYPE },
+            fuelEfficiencyUnit = current.fuelEfficiencyUnit,
+            fuelPricePerLiter = (current.fuelPriceInput.toDoubleOrNull() ?: PricingSettings.DEFAULT_FUEL_PRICE_PER_LITER).coerceAtLeast(0.0),
+            vehicleMileageKmPerL = current.effectiveMileageKmPerL.takeIf { it > 0.0 } ?: PricingSettings.DEFAULT_VEHICLE_MILEAGE_KM_PER_L,
+            maintenanceMarkup = (current.maintenanceMarkupInput.toDoubleOrNull() ?: PricingSettings.DEFAULT_MAINTENANCE_MARKUP).coerceAtLeast(0.0),
+            maintenanceMarkupMode = current.maintenanceMarkupMode
+        )
+        val updatedList = syncedVehicles + newProfile
+        val displayedMileage = when (newProfile.fuelEfficiencyUnit) {
+            FuelEfficiencyUnit.KM_PER_LITER -> newProfile.vehicleMileageKmPerL.toString()
+            FuelEfficiencyUnit.LITERS_PER_100KM -> newProfile.litersPer100Km.toString()
+        }
+        val nextState = current.copy(
+            activeVehicleId = newProfile.id,
+            savedVehicles = updatedList,
+            vehicleNameInput = newProfile.name,
+            preferredFuelType = newProfile.preferredFuelType,
+            fuelEfficiencyUnit = newProfile.fuelEfficiencyUnit,
+            fuelPriceInput = newProfile.fuelPricePerLiter.toString(),
+            vehicleMileageInput = displayedMileage,
+            maintenanceMarkupInput = newProfile.maintenanceMarkup.toString(),
+            maintenanceMarkupMode = newProfile.maintenanceMarkupMode,
+            statusMessage = "Added new car profile '${newProfile.name}'. Customize its telemetry below and tap Save Config.",
+            isError = false
+        )
+        localEdits.value = nextState
+        viewModelScope.launch {
+            buildPricingSettingsOrNull(nextState)?.let { settingsRepository.updateSettings(it) }
+        }
+    }
+
+    fun deleteActiveVehicleProfile() {
+        val current = localEdits.value
+        val syncedVehicles = current.updatedSavedVehiclesWithCurrentFields()
+        if (syncedVehicles.size <= 1) return
+        val remaining = syncedVehicles.filterNot { it.id == current.activeVehicleId }
+        val fallback = remaining.first()
+        val displayedMileage = when (fallback.fuelEfficiencyUnit) {
+            FuelEfficiencyUnit.KM_PER_LITER -> fallback.vehicleMileageKmPerL.toString()
+            FuelEfficiencyUnit.LITERS_PER_100KM -> fallback.litersPer100Km.toString()
+        }
+        val nextState = current.copy(
+            activeVehicleId = fallback.id,
+            savedVehicles = remaining,
+            vehicleNameInput = fallback.name,
+            preferredFuelType = fallback.preferredFuelType,
+            fuelEfficiencyUnit = fallback.fuelEfficiencyUnit,
+            fuelPriceInput = fallback.fuelPricePerLiter.toString(),
+            vehicleMileageInput = displayedMileage,
+            maintenanceMarkupInput = fallback.maintenanceMarkup.toString(),
+            maintenanceMarkupMode = fallback.maintenanceMarkupMode,
+            statusMessage = "Removed car profile. Active profile is now '${fallback.name}'.",
+            isError = false
+        )
+        localEdits.value = nextState
+        viewModelScope.launch {
+            buildPricingSettingsOrNull(nextState)?.let { settingsRepository.updateSettings(it) }
+        }
     }
 
     fun refreshLocalBackups() {
@@ -448,7 +571,21 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onVehicleNameChange(value: String) {
-        localEdits.update { it.copy(vehicleNameInput = value, statusMessage = null, isError = false) }
+        localEdits.update { current ->
+            val updatedVehicles = current.savedVehicles.map { v ->
+                if (v.id == current.activeVehicleId) {
+                    v.copy(name = value.trim().ifEmpty { PricingSettings.DEFAULT_VEHICLE_NAME })
+                } else {
+                    v
+                }
+            }
+            current.copy(
+                vehicleNameInput = value,
+                savedVehicles = updatedVehicles,
+                statusMessage = null,
+                isError = false
+            )
+        }
     }
 
     fun onPreferredFuelTypeChange(fuelType: String) {
@@ -664,6 +801,9 @@ class SettingsViewModel @Inject constructor(
             return null
         }
 
+        val syncedVehicles = current.updatedSavedVehiclesWithCurrentFields()
+        val activeId = current.activeVehicleId.ifBlank { VehicleProfile.DEFAULT_VEHICLE_ID }
+
         return PricingSettings(
             currencySymbol = current.currencySymbol.trim().ifEmpty { PricingSettings.DEFAULT_CURRENCY_SYMBOL },
             vehicleName = current.vehicleNameInput.trim().ifEmpty { PricingSettings.DEFAULT_VEHICLE_NAME },
@@ -677,6 +817,8 @@ class SettingsViewModel @Inject constructor(
             vehicleMileageKmPerL = mileageKmPerL,
             maintenanceMarkup = markup,
             maintenanceMarkupMode = current.maintenanceMarkupMode,
+            savedVehicles = syncedVehicles,
+            activeVehicleId = activeId,
             autoDetectDriveBluetooth = current.autoDetectDriveBluetooth,
             triggerBluetoothAddresses = current.triggerBluetoothAddresses,
             triggerBluetoothNames = current.triggerBluetoothNames,
@@ -686,7 +828,6 @@ class SettingsViewModel @Inject constructor(
             unpaidReminderInterval = current.unpaidReminderInterval
         )
     }
-
 
     fun onUnpaidReminderEnabledChange(enabled: Boolean) {
         localEdits.update { it.copy(unpaidReminderEnabled = enabled, statusMessage = null) }
@@ -729,6 +870,8 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.updateSettings(newSettings)
             localEdits.update {
                 it.copy(
+                    savedVehicles = newSettings.savedVehicles,
+                    activeVehicleId = newSettings.activeVehicleId,
                     statusMessage = "Vehicle telemetry & pricing rules saved.",
                     isError = false
                 )
@@ -772,6 +915,8 @@ class SettingsViewModel @Inject constructor(
             vehicleMileageInput = displayedMileage,
             maintenanceMarkupInput = maintenanceMarkup.toString(),
             maintenanceMarkupMode = maintenanceMarkupMode,
+            savedVehicles = effectiveVehicles,
+            activeVehicleId = activeVehicleProfile.id,
             autoDetectDriveBluetooth = autoDetectDriveBluetooth,
             triggerBluetoothAddresses = triggerBluetoothAddresses,
             triggerBluetoothNames = triggerBluetoothNames,

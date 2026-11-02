@@ -65,10 +65,31 @@ class DriveTrackingForegroundService : Service() {
             ACTION_STOP_DRIVE -> {
                 stopLocationUpdates()
                 releaseWakeLock()
-                driveTrackingManager.stopDrive()
+                if (driveTrackingManager.state.value.isDriveActive) {
+                    driveTrackingManager.stopDrive()
+                }
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
+            }
+            ACTION_ARM_BT_SPEED_MONITOR -> {
+                val btLabel = intent.getStringExtra(EXTRA_TRIGGER_SOURCE) ?: "Car Bluetooth"
+                currentTriggerSource = btLabel
+                acquireWakeLock()
+
+                val standbyNotification = buildBluetoothStandbyNotification(btLabel)
+                runCatching {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        startForeground(
+                            NOTIFICATION_ID_DRIVE,
+                            standbyNotification,
+                            ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                        )
+                    } else {
+                        startForeground(NOTIFICATION_ID_DRIVE, standbyNotification)
+                    }
+                }
+                startLocationUpdatesIfPermitted()
             }
             else -> {
                 val triggerSource = intent?.getStringExtra(EXTRA_TRIGGER_SOURCE) ?: "GPS Drive"
@@ -258,6 +279,29 @@ class DriveTrackingForegroundService : Service() {
         }
     }
 
+    private fun buildBluetoothStandbyNotification(btLabel: String): Notification {
+        val openIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val openPendingIntent = PendingIntent.getActivity(
+            this,
+            100,
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        return NotificationCompat.Builder(this, CHANNEL_ID_DRIVE_ONGOING)
+            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setContentTitle("Auto-Drive Armed · $btLabel")
+            .setContentText("Monitoring GPS speed to auto-start trip recording when moving")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(openPendingIntent)
+            .build()
+    }
+
     private fun buildHeadsUpDrivePromptNotification(
         triggerSource: String,
         distanceKm: Double,
@@ -341,6 +385,7 @@ class DriveTrackingForegroundService : Service() {
         const val NOTIFICATION_ID_DRIVE = 4201
         const val ACTION_START_DRIVE = "com.zaiki.trippawl.action.START_DRIVE"
         const val ACTION_STOP_DRIVE = "com.zaiki.trippawl.action.STOP_DRIVE"
+        const val ACTION_ARM_BT_SPEED_MONITOR = "com.zaiki.trippawl.action.ARM_BT_SPEED_MONITOR"
         const val EXTRA_TRIGGER_SOURCE = "extra_trigger_source"
         const val EXTRA_OPEN_PASSENGER_PROMPT = "extra_open_passenger_prompt"
     }

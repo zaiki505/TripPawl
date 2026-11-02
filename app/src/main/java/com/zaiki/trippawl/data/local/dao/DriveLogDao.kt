@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface DriveLogDao {
 
-    @Query("SELECT * FROM drive_logs ORDER BY startTimeMillis DESC, id DESC LIMIT :limit")
+    @Query("SELECT * FROM drive_logs WHERE status != 'SAVED' AND distanceKm >= 1.0 ORDER BY startTimeMillis DESC, id DESC LIMIT :limit")
     fun observeRecentLogs(limit: Int): Flow<List<DriveLogEntity>>
 
     @Query("SELECT * FROM drive_logs WHERE id = :id LIMIT 1")
@@ -27,6 +27,9 @@ interface DriveLogDao {
 
     @Query("DELETE FROM drive_logs WHERE id = :id")
     suspend fun deleteLog(id: Long)
+
+    @Query("DELETE FROM drive_logs WHERE distanceKm < 1.0")
+    suspend fun deleteShortLogs()
 
     @Query("DELETE FROM drive_logs")
     suspend fun deleteAllLogs()

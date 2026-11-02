@@ -22,8 +22,8 @@ interface RiderDao {
         """
         SELECT 
             r.*,
-            COALESCE(SUM(CASE WHEN t.isPaid = 0 THEN t.calculatedFare ELSE 0.0 END), 0.0) AS unpaidBalance,
-            COUNT(CASE WHEN t.isPaid = 0 THEN 1 END) AS unpaidTripCount,
+            COALESCE(SUM(CASE WHEN t.isPaid = 0 AND t.isWaived = 0 THEN t.calculatedFare ELSE 0.0 END), 0.0) AS unpaidBalance,
+            COUNT(CASE WHEN t.isPaid = 0 AND t.isWaived = 0 THEN 1 END) AS unpaidTripCount,
             COALESCE(SUM(CASE WHEN t.isPaid = 1 AND t.isWaived = 0 THEN t.calculatedFare ELSE 0.0 END), 0.0) AS settledAmount,
             COUNT(t.id) AS totalTripsCount
         FROM riders r

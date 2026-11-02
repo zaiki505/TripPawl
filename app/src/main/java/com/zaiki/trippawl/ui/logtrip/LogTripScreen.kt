@@ -6,14 +6,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,9 +26,17 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -60,7 +60,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.zaiki.trippawl.domain.model.FuelEfficiencyUnit
 import com.zaiki.trippawl.domain.model.RecurrenceUnit
-import com.zaiki.trippawl.domain.model.computeNextOccurrenceMillis
 import com.zaiki.trippawl.ui.components.ZaikiBentoCard
 import com.zaiki.trippawl.ui.components.ZaikiDetailPanel
 import com.zaiki.trippawl.ui.components.ZaikiFilterChip
@@ -180,7 +179,7 @@ private fun LogTripFormContent(
             .then(if (!isBottomSheet) Modifier.fillMaxSize() else Modifier)
             .imePadding()
     ) {
-        // 1. Sheet Header Row: Title on Left + Rounded Square '✕' Close Button on Right
+        // 1. Sheet Header Row: Title on Left + Rounded Square 'X' Close Button on Right
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -209,8 +208,8 @@ private fun LogTripFormContent(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "✕",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "X",
+                    style = MaterialTheme.typography.titleSmall,
                     color = colors.textPrimary,
                     fontWeight = FontWeight.Bold
                 )
@@ -231,15 +230,15 @@ private fun LogTripFormContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "YOU'LL COLLECT",
+                    text = if (uiState.form.isWaived) "WAIVED TRIP (FREE)" else "YOU'LL COLLECT",
                     style = MaterialTheme.typography.labelLarge,
-                    color = colors.textMuted,
+                    color = if (uiState.form.isWaived) colors.highlight else colors.textMuted,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
                     text = formatMoney(currency, uiState.totalYouWillCollect),
                     style = MaterialTheme.typography.headlineMedium,
-                    color = colors.available,
+                    color = if (uiState.form.isWaived) colors.highlight else colors.available,
                     fontWeight = FontWeight.ExtraBold
                 )
             }
@@ -379,7 +378,7 @@ private fun LogTripFormContent(
 }
 
 /**
- * 4-Step Milestone Progress Bar matching the reference UI (`1 DETAILS` — `2 FUEL` — `3 SPLIT` — `4 REVIEW`).
+ * 4-Step Milestone Progress Bar (`1 DETAILS` — `2 FUEL` — `3 SPLIT` — `4 REVIEW`).
  */
 @Composable
 private fun MilestoneStepperBar(
@@ -432,7 +431,7 @@ private fun MilestoneStepperBar(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (isCompleted) "✓" else step.stepNumber.toString(),
+                            text = step.stepNumber.toString(),
                             style = MaterialTheme.typography.labelMedium,
                             color = when {
                                 isCompleted -> Color.White
@@ -470,10 +469,11 @@ private fun MilestoneStepperBar(
 
 /**
  * STEP 1: DETAILS
- * - Date & Time selector + max 3 quick date presets (`Now`, `Today 8AM`, `Yesterday`)
+ * - Date & Time selector + quick date presets (`Now`, `Yesterday`)
  * - Title (optional) + last 3 used trip names suggestion strip
- * - Repeats schedule selector (max 5 quick options: `One-off`, `Daily`, `Weekly`, `Biweekly`, `Monthly`)
- * - Vehicle / Carpool profile chip
+ * - Repeats schedule selector (`One-off` vs `Repeats Schedule`)
+ * - Which car / carpool? selector across all configured car profiles in Settings
+ * - Trip Notes (optional) input field
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -487,9 +487,11 @@ private fun Step1DetailsCard(
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.US) }
     val currentTripDate = Date(uiState.form.tripDateMillis)
     val recentTripNames = uiState.recentTripNames
+    val currency = uiState.settings.currencySymbol.ifBlank { "RM" }
+    val availableVehicles = uiState.settings.effectiveVehicles
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Row 1: Date + Title (optional) side-by-side matching Reference Image 1
+        // Row 1: Date + Title (optional) side-by-side
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -538,7 +540,8 @@ private fun Step1DetailsCard(
                         )
                         Text(
                             text = "Date",
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textMuted
                         )
                     }
                 }
@@ -554,7 +557,7 @@ private fun Step1DetailsCard(
             }
         }
 
-        // Quick Time + Date Strip (Max 4 items <= 5) & Last 3 Trip Names Strip (Max 3 items <= 5)
+        // Quick Time + Date Strip
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -613,7 +616,7 @@ private fun Step1DetailsCard(
             }
         }
 
-        // Repeats Section: One-off vs Customizable Recurring Schedule (Every X Days/Weeks/Months/Years until X Date)
+        // Repeats Section: One-off vs Customizable Recurring Schedule
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = "Repeats",
@@ -657,7 +660,7 @@ private fun Step1DetailsCard(
             }
         }
 
-        // Which car / carpool?
+        // Which car / carpool? (Supports choosing from all configured car profiles in Settings)
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 text = "Which car / carpool?",
@@ -669,19 +672,36 @@ private fun Step1DetailsCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ZaikiFilterChip(
-                    label = "${uiState.settings.vehicleName.uppercase()} (${uiState.settings.preferredFuelType})",
-                    selected = true,
-                    onClick = {}
+                availableVehicles.forEach { profile ->
+                    val isSelected = profile.id == uiState.selectedVehicleProfile.id
+                    ZaikiFilterChip(
+                        label = "${profile.name.uppercase()} (${profile.preferredFuelType} · ${formatMoney(currency, profile.ratePerKm)}/km)",
+                        selected = isSelected,
+                        onClick = { viewModel.onSelectVehicleProfile(profile) }
+                    )
+                }
+            }
+            if (availableVehicles.size == 1) {
+                Text(
+                    text = "Add more car profiles anytime in Settings -> Vehicle Telemetry.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textMuted
                 )
             }
         }
+
+        // Trip Notes (optional)
+        ZaikiFormField(
+            label = "Trip Notes (optional)",
+            value = uiState.form.tripNotesInput,
+            onValueChange = viewModel::onTripNotesChange,
+            placeholder = "e.g. Picked up at LRT station, split highway toll"
+        )
     }
 }
 
 /**
  * STEP 2: FUEL & DISTANCE
- * Matches Reference Image 2:
  * - Fuel price (`RM/L`) field
  * - 2x2 Interactive Box (`COST`, `LITERS`, `DISTANCE`, `FUEL EFFICIENCY`)
  * - Quick Distance Strip Suggestion (Max 5 chips: `5 km`, `10 km`, `15 km`, `25 km`, `40 km`)
@@ -696,14 +716,15 @@ private fun Step2FuelCard(
 ) {
     val colors = ZaikiThemeTokens.colors
     val calc = uiState.liveFareResult
+    val activeCar = uiState.selectedVehicleProfile
     var showTollParkingOverrides by remember {
         mutableStateOf(uiState.form.tollInput.isNotBlank() || uiState.form.parkingInput.isNotBlank())
     }
 
-    val defaultFuelPriceDisplay = formatDecimal(uiState.settings.fuelPricePerLiter)
-    val defaultMileageDisplay = when (uiState.settings.fuelEfficiencyUnit) {
-        FuelEfficiencyUnit.KM_PER_LITER -> formatDecimal(uiState.settings.vehicleMileageKmPerL)
-        FuelEfficiencyUnit.LITERS_PER_100KM -> formatDecimal(uiState.settings.litersPer100Km)
+    val defaultFuelPriceDisplay = formatDecimal(activeCar.fuelPricePerLiter)
+    val defaultMileageDisplay = when (activeCar.fuelEfficiencyUnit) {
+        FuelEfficiencyUnit.KM_PER_LITER -> formatDecimal(activeCar.vehicleMileageKmPerL)
+        FuelEfficiencyUnit.LITERS_PER_100KM -> formatDecimal(activeCar.litersPer100Km)
     }
 
     val fuelCostText = if ((uiState.form.distanceInput.toDoubleOrNull() ?: 0.0) > 0.0) {
@@ -719,7 +740,7 @@ private fun Step2FuelCard(
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ZaikiFormField(
-            label = "Fuel price ($currency/L)",
+            label = "Fuel price ($currency/L) · ${activeCar.name}",
             value = uiState.form.customFuelPriceInput,
             onValueChange = viewModel::onCustomFuelPriceChange,
             placeholder = defaultFuelPriceDisplay,
@@ -776,7 +797,7 @@ private fun Step2FuelCard(
                     value = uiState.form.customFuelConsumptionInput,
                     onValueChange = viewModel::onCustomFuelConsumptionChange,
                     placeholder = defaultMileageDisplay,
-                    suffix = uiState.settings.fuelEfficiencyUnit.suffix,
+                    suffix = activeCar.fuelEfficiencyUnit.suffix,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f)
                 )
@@ -789,7 +810,7 @@ private fun Step2FuelCard(
             color = colors.textMuted
         )
 
-        // Quick Distance Suggestion Strip (Max 5 options per Requirement 7)
+        // Quick Distance Suggestion Strip (Max 5 options)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -825,9 +846,10 @@ private fun Step2FuelCard(
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = if (showTollParkingOverrides) "▴" else "▾",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.textMuted
+                    text = if (showTollParkingOverrides) "Hide" else "Show",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.highlight,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
@@ -863,10 +885,10 @@ private fun Step2FuelCard(
 /**
  * STEP 3: SPLIT & PASSENGERS
  * - Select riders for this trip (full riders list + inline `+ New Rider`)
- * - Auto Split vs Custom Rider Payment Value Override (Requirement 6)
- * - Max 5 quick payment override chips (`RM 2`, `RM 3`, `RM 5`, `RM 8`, `RM 10`)
+ * - Auto Split vs Custom Rider Payment Value Override
+ * - Quick payment override chips (`RM 2`, `RM 3`, `RM 5`, `RM 8`, `RM 10`)
  * - Per-rider custom payment override fields when Custom Override is active
- * - Paid / Unpaid toggle
+ * - 3-way Payment Status Toggle (`Unpaid` | `Paid` | `Waived`)
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -887,7 +909,6 @@ private fun Step3SplitCard(
             fontWeight = FontWeight.Bold
         )
 
-        // Saved Riders List (Exception allowed by Requirement 7)
         if (uiState.savedRiders.isNotEmpty()) {
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -947,7 +968,7 @@ private fun Step3SplitCard(
 
         ZaikiHairlineDivider()
 
-        // Split Mode & Custom Payment Value Override (Requirement 6)
+        // Split Mode & Custom Payment Value Override
         Text(
             text = "Rider Payment Calculation",
             style = MaterialTheme.typography.titleSmall,
@@ -972,7 +993,6 @@ private fun Step3SplitCard(
         }
 
         if (!uiState.form.isCustomSplitOverride) {
-            // Auto Split: Occupant Count Stepper
             ZaikiDetailPanel(contentPadding = PaddingValues(12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -981,43 +1001,31 @@ private fun Step3SplitCard(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Total Passengers",
+                            text = if (calc.isShortTrip) {
+                                "Short-Trip Flat Tier"
+                            } else {
+                                "Fair Occupant Split (${calc.passengerCount} Pax + 1 Driver)"
+                            },
                             style = MaterialTheme.typography.titleSmall,
                             color = colors.textPrimary,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = if (calc.isShortTrip) {
-                                "Short trip flat: ${formatMoney(currency, uiState.effectiveSettings.shortTripFlatRate)} / rider"
+                                "Every selected passenger pays flat ${formatMoney(currency, uiState.effectiveSettings.shortTripFlatRate)}"
                             } else {
-                                "Split across ${calc.passengerCount} Pax + 1 Driver (÷${calc.totalOccupants})"
+                                "Total trip cost ${formatMoney(currency, calc.totalTripFare)} divided by ${calc.totalOccupants} occupants"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textMuted
                         )
                     }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val minPassengers = uiState.form.selectedRiderIds.size.coerceAtLeast(1)
-                        StepperButton(
-                            symbol = "−",
-                            enabled = uiState.form.passengerCount > minPassengers,
-                            onClick = { viewModel.onPassengerCountChange(uiState.form.passengerCount - 1) }
-                        )
-                        Text(
-                            text = uiState.form.passengerCount.toString(),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = colors.highlight,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                        StepperButton(
-                            symbol = "+",
-                            enabled = uiState.form.passengerCount < 10,
-                            onClick = { viewModel.onPassengerCountChange(uiState.form.passengerCount + 1) }
-                        )
-                    }
+                    Text(
+                        text = "${formatMoney(currency, calc.riderShare)}/pax",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = colors.highlight,
+                        fontWeight = FontWeight.ExtraBold
+                    )
                 }
             }
         } else {
@@ -1037,7 +1045,7 @@ private fun Step3SplitCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Quick Custom Payment Suggestion Strip (Max 5 options per Requirement 7)
+                // Quick Custom Payment Suggestion Strip (Max 5 options)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1051,7 +1059,7 @@ private fun Step3SplitCard(
                     }
                 }
 
-                // Individual Per-Rider Payment Override Inputs when riders are selected
+                // Individual Per-Rider Payment Override Inputs when multiple riders are selected
                 if (selectedRiders.size > 1) {
                     Spacer(modifier = Modifier.height(10.dp))
                     ZaikiHairlineDivider()
@@ -1097,23 +1105,36 @@ private fun Step3SplitCard(
             }
         }
 
-        // Payment Status Toggle (Unpaid vs Paid)
+        // 3-Way Payment Status Toggle (Unpaid vs Paid vs Waived)
+        Text(
+            text = "Payment Status",
+            style = MaterialTheme.typography.titleSmall,
+            color = colors.textPrimary,
+            fontWeight = FontWeight.Bold
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             PaymentToggleOption(
                 label = "Unpaid",
-                selected = !uiState.form.isPaid,
+                selected = !uiState.form.isPaid && !uiState.form.isWaived,
                 activeColor = colors.unavailable,
-                onClick = { viewModel.onPaymentStatusToggle(false) },
+                onClick = { viewModel.onPaymentStatusSelect(isPaid = false, isWaived = false) },
                 modifier = Modifier.weight(1f)
             )
             PaymentToggleOption(
                 label = "Paid",
-                selected = uiState.form.isPaid,
+                selected = uiState.form.isPaid && !uiState.form.isWaived,
                 activeColor = colors.available,
-                onClick = { viewModel.onPaymentStatusToggle(true) },
+                onClick = { viewModel.onPaymentStatusSelect(isPaid = true, isWaived = false) },
+                modifier = Modifier.weight(1f)
+            )
+            PaymentToggleOption(
+                label = "Waived",
+                selected = uiState.form.isWaived,
+                activeColor = colors.highlight,
+                onClick = { viewModel.onPaymentStatusSelect(isPaid = true, isWaived = true) },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -1122,8 +1143,7 @@ private fun Step3SplitCard(
 
 /**
  * STEP 4: REVIEW
- * Matches Reference Image 3:
- * - Clean summary card with Vehicle, Date, Repeats, 2x2 Grid (COST, DISTANCE, FUEL, PRICE), Split & Riders
+ * - Clean summary card with Vehicle, Title, Notes, Date, Repeats, 2x2 Grid (COST, DISTANCE, FUEL, PRICE), Split & Riders
  * - Highlighted `YOU'LL COLLECT` box at the bottom
  */
 @Composable
@@ -1161,17 +1181,30 @@ private fun Step4ReviewCard(
         "Auto (${formatMoney(currency, calc.riderShare)}/pax)"
     }
 
+    val statusSummaryLabel = when {
+        uiState.form.isWaived -> "Waived (Free Ride)"
+        uiState.form.isPaid -> "Paid"
+        else -> "Unpaid"
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ZaikiBentoCard(contentPadding = PaddingValues(16.dp)) {
             ReviewKeyValueRow(
                 label = "Vehicle",
-                value = uiState.settings.vehicleName.uppercase()
+                value = "${uiState.selectedVehicleProfile.name.uppercase()} (${uiState.selectedVehicleProfile.preferredFuelType})"
             )
             if (uiState.form.tripNameInput.isNotBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 ReviewKeyValueRow(
                     label = "Title",
                     value = uiState.form.tripNameInput.trim()
+                )
+            }
+            if (uiState.form.tripNotesInput.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                ReviewKeyValueRow(
+                    label = "Notes",
+                    value = uiState.form.tripNotesInput.trim()
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -1276,11 +1309,11 @@ private fun Step4ReviewCard(
             Spacer(modifier = Modifier.height(8.dp))
             ReviewKeyValueRow(
                 label = "Status",
-                value = if (uiState.form.isPaid) "Paid" else "Unpaid"
+                value = statusSummaryLabel
             )
         }
 
-        // Bottom Highlight Card: YOU'LL COLLECT
+        // Bottom Highlight Card: YOU'LL COLLECT / WAIVED
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1295,15 +1328,15 @@ private fun Step4ReviewCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "YOU'LL COLLECT",
+                    text = if (uiState.form.isWaived) "WAIVED TRIP (FREE)" else "YOU'LL COLLECT",
                     style = MaterialTheme.typography.labelLarge,
-                    color = colors.textMuted,
+                    color = if (uiState.form.isWaived) colors.highlight else colors.textMuted,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = formatMoney(currency, uiState.totalYouWillCollect),
                     style = MaterialTheme.typography.headlineMedium,
-                    color = colors.available,
+                    color = if (uiState.form.isWaived) colors.highlight else colors.available,
                     fontWeight = FontWeight.ExtraBold
                 )
             }
@@ -1349,37 +1382,6 @@ private fun ReviewKeyValueRow(
 }
 
 @Composable
-private fun StepperButton(
-    symbol: String,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    val colors = ZaikiThemeTokens.colors
-    Box(
-        modifier = Modifier
-            .size(34.dp)
-            .zaikiSquishClickable(enabled = enabled, onClick = onClick)
-            .clip(ZaikiRadii.Button)
-            .background(if (enabled) colors.accentWash else colors.surfaceChip)
-            .border(
-                BorderStroke(
-                    1.dp,
-                    if (enabled) colors.borderAccent else colors.borderChip
-                ),
-                ZaikiRadii.Button
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = symbol,
-            style = MaterialTheme.typography.titleMedium,
-            color = if (enabled) colors.highlight else colors.textFaint,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
 private fun PaymentToggleOption(
     label: String,
     selected: Boolean,
@@ -1398,7 +1400,7 @@ private fun PaymentToggleOption(
             .clip(ZaikiRadii.Button)
             .background(bgColor)
             .border(BorderStroke(1.dp, borderColor), ZaikiRadii.Button)
-            .padding(vertical = 11.dp, horizontal = 14.dp),
+            .padding(vertical = 11.dp, horizontal = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -1409,7 +1411,6 @@ private fun PaymentToggleOption(
         )
     }
 }
-
 
 @Composable
 private fun CustomRepeatScheduleCard(
@@ -1464,7 +1465,7 @@ private fun CustomRepeatScheduleCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // First Row: "Repeat every [ 1 ] [ month ▾ ]"
+            // First Row: "Repeat every [ 1 ] [ month v ]"
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
@@ -1479,7 +1480,7 @@ private fun CustomRepeatScheduleCard(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // [ 1 ] chip with subtle steppers
+                // [ 1 ] chip with steppers
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -1494,7 +1495,7 @@ private fun CustomRepeatScheduleCard(
                         modifier = Modifier.size(24.dp)
                     ) {
                         Text(
-                            text = "−",
+                            text = "-",
                             style = MaterialTheme.typography.titleSmall,
                             color = if (intervalVal > 1) colors.textPrimary else colors.textMuted
                         )
@@ -1523,7 +1524,7 @@ private fun CustomRepeatScheduleCard(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // [ month ▾ ] chip
+                // [ month v ] chip
                 Box {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

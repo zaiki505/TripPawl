@@ -11,7 +11,7 @@ interface TripRepository {
     fun observeRecentTrips(limit: Int = 20): Flow<List<Trip>>
     fun observeAllTrips(): Flow<List<Trip>>
     fun observeTripsForRider(riderId: Long): Flow<List<Trip>>
-    fun observeDashboardMetrics(monthStartMillis: Long, monthEndMillis: Long): Flow<DashboardMetrics>
+    fun observeDashboardMetrics(startTimeMillis: Long, endTimeMillis: Long): Flow<DashboardMetrics>
     suspend fun getTripById(tripId: Long): Trip?
     suspend fun getTripsByGroupId(tripGroupId: String): List<Trip>
     suspend fun insertTrip(trip: Trip): Long

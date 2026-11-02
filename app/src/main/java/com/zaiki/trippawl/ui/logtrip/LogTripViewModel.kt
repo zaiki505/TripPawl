@@ -10,6 +10,7 @@ import com.zaiki.trippawl.domain.model.PricingSettings
 import com.zaiki.trippawl.domain.model.RecurrenceUnit
 import com.zaiki.trippawl.domain.model.Rider
 import com.zaiki.trippawl.domain.model.Trip
+import com.zaiki.trippawl.domain.model.VehicleProfile
 import com.zaiki.trippawl.domain.model.computeNextOccurrenceMillis
 import com.zaiki.trippawl.domain.repository.RiderRepository
 import com.zaiki.trippawl.domain.repository.SettingsRepository
@@ -34,6 +35,8 @@ data class LogTripFormState(
     val editingGroupId: String? = null,
     val existingGroupTrips: List<Trip> = emptyList(),
     val tripNameInput: String = "",
+    val selectedVehicleId: String = "",
+    val selectedVehicleName: String = "",
     val selectedRiderId: Long? = null,
     val selectedRiderIds: Set<Long> = emptySet(),
     val riderNameInput: String = "",
@@ -47,6 +50,7 @@ data class LogTripFormState(
     val customFarePerRiderInput: String = "",
     val customRiderFareMap: Map<Long, String> = emptyMap(),
     val isPaid: Boolean = false,
+    val isWaived: Boolean = false,
     val tripDateMillis: Long = System.currentTimeMillis(),
     val customFuelConsumptionInput: String = "",
     val customFuelPriceInput: String = "",
@@ -67,6 +71,7 @@ data class LogTripUiState(
     val savedRiders: List<Rider> = emptyList(),
     val recentTripNames: List<String> = emptyList(),
     val settings: PricingSettings = PricingSettings(),
+    val selectedVehicleProfile: VehicleProfile = VehicleProfile(),
     val effectiveSettings: PricingSettings = PricingSettings(),
     val liveFareResult: FareCalculationResult = FareCalculationResult()
 ) {
@@ -91,9 +96,11 @@ data class LogTripUiState(
 
     /**
      * Total collectible amount across all selected passengers for this trip (`YOU'LL COLLECT`).
+     * Returns 0.0 when the trip is marked as Waived.
      */
     val totalYouWillCollect: Double
         get() {
+            if (form.isWaived) return 0.0
             return if (form.selectedRiderIds.isNotEmpty() && !form.isCreatingNewRider) {
                 form.selectedRiderIds.sumOf { id -> effectiveFareForRider(id) }
             } else {
@@ -138,26 +145,31 @@ class LogTripViewModel @Inject constructor(
             .distinctBy { it.lowercase(Locale.US) }
             .take(3)
 
+        val vehicles = settings.effectiveVehicles
+        val selectedProfile = vehicles.firstOrNull { it.id == form.selectedVehicleId }
+            ?: vehicles.firstOrNull {
+                form.selectedVehicleName.isNotBlank() && it.name.equals(form.selectedVehicleName, ignoreCase = true)
+            }
+            ?: settings.activeVehicleProfile
+
+        val baseSettings = settings.withVehicleProfile(selectedProfile)
+
         val distanceKm = form.distanceInput.toDoubleOrNull() ?: 0.0
         val tollAmount = form.tollInput.toDoubleOrNull() ?: 0.0
         val parkingAmount = form.parkingInput.toDoubleOrNull() ?: 0.0
-        val effectivePassengers = if (form.selectedRiderIds.isNotEmpty()) {
-            form.selectedRiderIds.size.coerceAtLeast(form.passengerCount)
-        } else {
-            form.passengerCount.coerceAtLeast(1)
-        }
+        val effectivePassengers = form.selectedRiderIds.size.coerceAtLeast(1)
 
         val customMileageKmPerL = parseCustomMileageKmPerL(
             rawInput = form.customFuelConsumptionInput,
-            unit = settings.fuelEfficiencyUnit
+            unit = baseSettings.fuelEfficiencyUnit
         )
         val customFuelPrice = form.customFuelPriceInput.toDoubleOrNull()?.takeIf { it >= 0.0 }
         val customMaintenance = form.customMaintenanceInput.toDoubleOrNull()?.takeIf { it >= 0.0 }
 
-        val effectiveSettings = settings.copy(
-            vehicleMileageKmPerL = customMileageKmPerL ?: settings.vehicleMileageKmPerL,
-            fuelPricePerLiter = customFuelPrice ?: settings.fuelPricePerLiter,
-            maintenanceMarkup = customMaintenance ?: settings.maintenanceMarkup
+        val effectiveSettings = baseSettings.copy(
+            vehicleMileageKmPerL = customMileageKmPerL ?: baseSettings.vehicleMileageKmPerL,
+            fuelPricePerLiter = customFuelPrice ?: baseSettings.fuelPricePerLiter,
+            maintenanceMarkup = customMaintenance ?: baseSettings.maintenanceMarkup
         )
 
         val livePreview = calculateTripFareUseCase(
@@ -169,10 +181,15 @@ class LogTripViewModel @Inject constructor(
         )
 
         LogTripUiState(
-            form = form.copy(passengerCount = effectivePassengers),
+            form = form.copy(
+                passengerCount = effectivePassengers,
+                selectedVehicleId = selectedProfile.id,
+                selectedVehicleName = selectedProfile.name
+            ),
             savedRiders = riders,
             recentTripNames = lastThreeTripNames,
             settings = settings,
+            selectedVehicleProfile = selectedProfile,
             effectiveSettings = effectiveSettings,
             liveFareResult = livePreview
         )
@@ -211,9 +228,15 @@ class LogTripViewModel @Inject constructor(
                 listOf(existing)
             }
 
+            val vehicles = settings.effectiveVehicles
+            val matchedProfile = vehicles.firstOrNull {
+                existing.vehicleName.isNotBlank() && it.name.equals(existing.vehicleName, ignoreCase = true)
+            } ?: settings.activeVehicleProfile
+            val baseSettings = settings.withVehicleProfile(matchedProfile)
+
             val riderIds = groupTrips.map { it.riderId }.toSet()
             val customMileageDisplay = existing.customFuelMileageKmPerL?.let { kmPerL ->
-                when (settings.fuelEfficiencyUnit) {
+                when (baseSettings.fuelEfficiencyUnit) {
                     FuelEfficiencyUnit.KM_PER_LITER -> trimTrailingZeros(kmPerL)
                     FuelEfficiencyUnit.LITERS_PER_100KM ->
                         if (kmPerL > 0.0) trimTrailingZeros(100.0 / kmPerL) else ""
@@ -223,15 +246,15 @@ class LogTripViewModel @Inject constructor(
             val customFuelPriceDisplay = existing.customFuelPricePerLiter?.let { trimTrailingZeros(it) }.orEmpty()
             val customMaintenanceDisplay = existing.customMaintenanceMarkup?.let { trimTrailingZeros(it) }.orEmpty()
 
-            val effectiveSettings = settings.copy(
-                vehicleMileageKmPerL = existing.customFuelMileageKmPerL ?: settings.vehicleMileageKmPerL,
-                fuelPricePerLiter = existing.customFuelPricePerLiter ?: settings.fuelPricePerLiter,
-                maintenanceMarkup = existing.customMaintenanceMarkup ?: settings.maintenanceMarkup
+            val effectiveSettings = baseSettings.copy(
+                vehicleMileageKmPerL = existing.customFuelMileageKmPerL ?: baseSettings.vehicleMileageKmPerL,
+                fuelPricePerLiter = existing.customFuelPricePerLiter ?: baseSettings.fuelPricePerLiter,
+                maintenanceMarkup = existing.customMaintenanceMarkup ?: baseSettings.maintenanceMarkup
             )
             val autoCalc = calculateTripFareUseCase(
                 distanceKm = existing.distanceKm,
                 tollAmount = existing.tollAmount,
-                passengerCount = maxOf(riderIds.size, existing.passengerCount.coerceAtLeast(1)),
+                passengerCount = riderIds.size.coerceAtLeast(1),
                 settings = effectiveSettings,
                 parkingAmount = existing.parkingAmount
             )
@@ -243,12 +266,17 @@ class LogTripViewModel @Inject constructor(
                 emptyMap()
             }
 
+            val allWaived = groupTrips.isNotEmpty() && groupTrips.all { t -> t.isWaived }
+            val allPaid = groupTrips.isNotEmpty() && groupTrips.all { t -> t.isPaid }
+
             formState.update {
                 it.copy(
                     editingTripId = existing.id,
                     editingGroupId = existing.tripGroupId,
                     existingGroupTrips = groupTrips,
                     tripNameInput = existing.tripName,
+                    selectedVehicleId = matchedProfile.id,
+                    selectedVehicleName = matchedProfile.name,
                     selectedRiderId = existing.riderId,
                     selectedRiderIds = riderIds,
                     riderNameInput = existing.riderName,
@@ -257,11 +285,12 @@ class LogTripViewModel @Inject constructor(
                     distanceInput = trimTrailingZeros(existing.distanceKm),
                     tollInput = if (existing.tollAmount > 0.0) trimTrailingZeros(existing.tollAmount) else "",
                     parkingInput = if (existing.parkingAmount > 0.0) trimTrailingZeros(existing.parkingAmount) else "",
-                    passengerCount = maxOf(riderIds.size, existing.passengerCount.coerceAtLeast(1)),
+                    passengerCount = riderIds.size.coerceAtLeast(1),
                     isCustomSplitOverride = hasCustomFare,
                     customFarePerRiderInput = if (hasCustomFare) trimTrailingZeros(existing.calculatedFare) else "",
                     customRiderFareMap = perRiderMap,
-                    isPaid = groupTrips.all { t -> t.isPaid },
+                    isPaid = allPaid,
+                    isWaived = allWaived,
                     tripDateMillis = existing.tripDate,
                     customFuelConsumptionInput = customMileageDisplay,
                     customFuelPriceInput = customFuelPriceDisplay,
@@ -278,6 +307,20 @@ class LogTripViewModel @Inject constructor(
                     isDetailedTelemetryExpanded = true
                 )
             }
+        }
+    }
+
+    fun onSelectVehicleProfile(profile: VehicleProfile) {
+        formState.update {
+            it.copy(
+                selectedVehicleId = profile.id,
+                selectedVehicleName = profile.name,
+                customFuelConsumptionInput = "",
+                customFuelPriceInput = "",
+                customMaintenanceInput = "",
+                statusMessage = null,
+                isError = false
+            )
         }
     }
 
@@ -443,17 +486,6 @@ class LogTripViewModel @Inject constructor(
         val filtered = sanitizeDecimalInput(value)
         formState.update {
             it.copy(parkingInput = filtered, statusMessage = null, isError = false)
-        }
-    }
-
-    fun onPassengerCountChange(newCount: Int) {
-        val minCount = formState.value.selectedRiderIds.size.coerceAtLeast(1)
-        formState.update {
-            it.copy(
-                passengerCount = newCount.coerceIn(minCount, 10),
-                statusMessage = null,
-                isError = false
-            )
         }
     }
 
@@ -643,10 +675,19 @@ class LogTripViewModel @Inject constructor(
         }
     }
 
-    fun onPaymentStatusToggle(isPaid: Boolean) {
+    fun onPaymentStatusSelect(isPaid: Boolean, isWaived: Boolean) {
         formState.update {
-            it.copy(isPaid = isPaid, statusMessage = null, isError = false)
+            it.copy(
+                isPaid = isPaid || isWaived,
+                isWaived = isWaived,
+                statusMessage = null,
+                isError = false
+            )
         }
+    }
+
+    fun onPaymentStatusToggle(isPaid: Boolean) {
+        onPaymentStatusSelect(isPaid = isPaid, isWaived = false)
     }
 
     fun setValidationHint(message: String) {
@@ -699,13 +740,16 @@ class LogTripViewModel @Inject constructor(
             val calc = current.liveFareResult
             val now = System.currentTimeMillis()
             val tripDate = current.form.tripDateMillis
-            val settledDate = if (current.form.isPaid) now else null
+            val effectiveIsWaived = current.form.isWaived
+            val effectiveIsPaid = current.form.isPaid || effectiveIsWaived
+            val settledDate = if (effectiveIsPaid) now else null
             val cleanTripName = current.form.tripNameInput.trim()
             val cleanNotes = current.form.tripNotesInput.trim()
+            val selectedVehicle = current.selectedVehicleProfile
 
             val customMileageKmPerL = parseCustomMileageKmPerL(
                 rawInput = current.form.customFuelConsumptionInput,
-                unit = current.settings.fuelEfficiencyUnit
+                unit = selectedVehicle.fuelEfficiencyUnit
             )
             val customFuelPrice = current.form.customFuelPriceInput.toDoubleOrNull()?.takeIf { it >= 0.0 }
             val customMaintenance = current.form.customMaintenanceInput.toDoubleOrNull()?.takeIf { it >= 0.0 }
@@ -776,25 +820,27 @@ class LogTripViewModel @Inject constructor(
                         tollAmount = calc.effectiveTollAmount,
                         parkingAmount = calc.parkingAmount,
                         calculatedFare = effectiveRiderFare,
-                        isPaid = current.form.isPaid,
+                        isPaid = effectiveIsPaid,
+                        isWaived = effectiveIsWaived,
                         tripDate = tripDate,
                         arrivalDate = existingRow?.arrivalDate,
-                        settledDate = settledDate,
-                        passengerCount = calc.passengerCount,
+                        settledDate = if (effectiveIsPaid) (existingRow?.settledDate ?: settledDate) else null,
+                        passengerCount = targetRiders.size,
                         fuelCost = calc.actualFuelCost,
                         maintenanceAmount = calc.maintenanceSurcharge,
                         totalTripCost = calc.totalTripFare,
                         gpsPointsCount = existingRow?.gpsPointsCount ?: 0,
                         isAutoTracked = existingRow?.isAutoTracked ?: false,
-                        customFuelMileageKmPerL = customMileageKmPerL,
-                        customFuelPricePerLiter = customFuelPrice,
-                        customMaintenanceMarkup = customMaintenance,
+                        customFuelMileageKmPerL = customMileageKmPerL ?: selectedVehicle.vehicleMileageKmPerL,
+                        customFuelPricePerLiter = customFuelPrice ?: selectedVehicle.fuelPricePerLiter,
+                        customMaintenanceMarkup = customMaintenance ?: selectedVehicle.maintenanceMarkup,
                         tripNotes = cleanNotes,
                         isRecurring = isRecurring,
                         recurrenceInterval = recurrenceInterval,
                         recurrenceUnit = recurrenceUnit,
                         nextOccurrenceDate = nextOccurrenceDate,
-                        recurrenceEndDate = recurrenceEndDate
+                        recurrenceEndDate = recurrenceEndDate,
+                        vehicleName = selectedVehicle.name
                     )
                     if (existingRow != null) {
                         tripRepository.updateTrip(rowTrip)
@@ -817,22 +863,24 @@ class LogTripViewModel @Inject constructor(
                         tollAmount = calc.effectiveTollAmount,
                         parkingAmount = calc.parkingAmount,
                         calculatedFare = effectiveRiderFare,
-                        isPaid = current.form.isPaid,
+                        isPaid = effectiveIsPaid,
+                        isWaived = effectiveIsWaived,
                         tripDate = tripDate,
                         settledDate = settledDate,
-                        passengerCount = calc.passengerCount,
+                        passengerCount = targetRiders.size,
                         fuelCost = calc.actualFuelCost,
                         maintenanceAmount = calc.maintenanceSurcharge,
                         totalTripCost = calc.totalTripFare,
-                        customFuelMileageKmPerL = customMileageKmPerL,
-                        customFuelPricePerLiter = customFuelPrice,
-                        customMaintenanceMarkup = customMaintenance,
+                        customFuelMileageKmPerL = customMileageKmPerL ?: selectedVehicle.vehicleMileageKmPerL,
+                        customFuelPricePerLiter = customFuelPrice ?: selectedVehicle.fuelPricePerLiter,
+                        customMaintenanceMarkup = customMaintenance ?: selectedVehicle.maintenanceMarkup,
                         tripNotes = cleanNotes,
                         isRecurring = isRecurring,
                         recurrenceInterval = recurrenceInterval,
                         recurrenceUnit = recurrenceUnit,
                         nextOccurrenceDate = nextOccurrenceDate,
-                        recurrenceEndDate = recurrenceEndDate
+                        recurrenceEndDate = recurrenceEndDate,
+                        vehicleName = selectedVehicle.name
                     )
                     tripRepository.insertTrip(newTrip)
                 }

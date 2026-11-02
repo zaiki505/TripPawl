@@ -32,26 +32,26 @@ interface TripDao {
     @Query(
         """
         SELECT 
-            COALESCE(SUM(CASE WHEN isPaid = 0 THEN calculatedFare ELSE 0.0 END), 0.0) AS totalUncollectedDebt,
+            COALESCE(SUM(CASE WHEN isPaid = 0 AND isWaived = 0 THEN calculatedFare ELSE 0.0 END), 0.0) AS totalUncollectedDebt,
             COALESCE(
                 (SELECT SUM(groupFuel) FROM (
                     SELECT MAX(fuelCost) AS groupFuel
                     FROM trips
-                    WHERE tripDate >= :monthStartMillis AND tripDate <= :monthEndMillis
+                    WHERE tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis
                     GROUP BY CASE WHEN tripGroupId != '' THEN tripGroupId ELSE CAST(id AS TEXT) END
                 )),
                 0.0
             ) AS totalFuelSpentCurrentMonth,
-            COALESCE(SUM(CASE WHEN isPaid = 1 AND isWaived = 0 THEN calculatedFare ELSE 0.0 END), 0.0) AS totalSettledPayments,
-            COUNT(CASE WHEN isPaid = 0 THEN 1 END) AS unpaidTripCount,
-            COUNT(DISTINCT CASE WHEN tripDate >= :monthStartMillis AND tripDate <= :monthEndMillis THEN (CASE WHEN tripGroupId != '' THEN tripGroupId ELSE CAST(id AS TEXT) END) END) AS currentMonthTripCount,
-            COUNT(CASE WHEN isPaid = 1 AND isWaived = 0 THEN 1 END) AS settledTripCount,
-            COALESCE(SUM(CASE WHEN isWaived = 1 THEN calculatedFare ELSE 0.0 END), 0.0) AS totalWaivedAmount,
-            COUNT(CASE WHEN isWaived = 1 THEN 1 END) AS waivedTripCount
+            COALESCE(SUM(CASE WHEN isPaid = 1 AND isWaived = 0 AND ((tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis) OR (settledDate IS NOT NULL AND settledDate >= :startTimeMillis AND settledDate <= :endTimeMillis)) THEN calculatedFare ELSE 0.0 END), 0.0) AS totalSettledPayments,
+            COUNT(CASE WHEN isPaid = 0 AND isWaived = 0 THEN 1 END) AS unpaidTripCount,
+            COUNT(DISTINCT CASE WHEN tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis THEN (CASE WHEN tripGroupId != '' THEN tripGroupId ELSE CAST(id AS TEXT) END) END) AS currentMonthTripCount,
+            COUNT(CASE WHEN isPaid = 1 AND isWaived = 0 AND ((tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis) OR (settledDate IS NOT NULL AND settledDate >= :startTimeMillis AND settledDate <= :endTimeMillis)) THEN 1 END) AS settledTripCount,
+            COALESCE(SUM(CASE WHEN isWaived = 1 AND ((tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis) OR (settledDate IS NOT NULL AND settledDate >= :startTimeMillis AND settledDate <= :endTimeMillis)) THEN calculatedFare ELSE 0.0 END), 0.0) AS totalWaivedAmount,
+            COUNT(CASE WHEN isWaived = 1 AND ((tripDate >= :startTimeMillis AND tripDate <= :endTimeMillis) OR (settledDate IS NOT NULL AND settledDate >= :startTimeMillis AND settledDate <= :endTimeMillis)) THEN 1 END) AS waivedTripCount
         FROM trips
         """
     )
-    fun observeDashboardMetrics(monthStartMillis: Long, monthEndMillis: Long): Flow<DashboardMetrics>
+    fun observeDashboardMetrics(startTimeMillis: Long, endTimeMillis: Long): Flow<DashboardMetrics>
 
     @Transaction
     @Query("SELECT * FROM trips WHERE id = :tripId LIMIT 1")
@@ -83,8 +83,8 @@ interface TripDao {
     @Query("UPDATE trips SET isWaived = :isWaived, isPaid = :isWaived, settledDate = :settledDate WHERE id = :tripId")
     suspend fun updateTripWaivedStatus(tripId: Long, isWaived: Boolean, settledDate: Long?)
 
-    /** Waives every still-unpaid share in a group (already-collected shares are left untouched). */
-    @Query("UPDATE trips SET isWaived = 1, isPaid = 1, settledDate = :settledDate WHERE tripGroupId = :tripGroupId AND isPaid = 0")
+    /** Waives shares in a group (marks them settled and waived). */
+    @Query("UPDATE trips SET isWaived = 1, isPaid = 1, settledDate = :settledDate WHERE tripGroupId = :tripGroupId")
     suspend fun waiveUnpaidSharesInGroup(tripGroupId: String, settledDate: Long): Int
 
     /** Reverts every waived share in a group back to unpaid. */
